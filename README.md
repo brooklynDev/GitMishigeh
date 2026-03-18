@@ -4,6 +4,12 @@ Cross-platform desktop Git GUI built with .NET and Avalonia.
 
 This project is currently a vibe-coded WIP experiment. It is intentionally lightweight, still evolving, and very much not pretending to be a finished product yet.
 
+## Releases
+
+Download prebuilt artifacts here:
+
+- https://github.com/brooklynDev/GitMishigeh/releases
+
 ## Builds
 
 GitHub Actions produces downloadable builds for:
