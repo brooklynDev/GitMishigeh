@@ -21,16 +21,15 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
-            // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
 
             var gitService = new GitService();
             var folderPickerService = new FolderPickerService();
+            var recentRepositoryStore = new RecentRepositoryStore();
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(gitService, folderPickerService),
+                DataContext = new MainWindowViewModel(gitService, folderPickerService, recentRepositoryStore),
             };
         }
 
@@ -39,11 +38,9 @@ public partial class App : Application
 
     private void DisableAvaloniaDataAnnotationValidation()
     {
-        // Get an array of plugins to remove
         var dataValidationPluginsToRemove =
             BindingPlugins.DataValidators.OfType<DataAnnotationsValidationPlugin>().ToArray();
 
-        // remove each entry found
         foreach (var plugin in dataValidationPluginsToRemove)
         {
             BindingPlugins.DataValidators.Remove(plugin);

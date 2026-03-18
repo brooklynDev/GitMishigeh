@@ -15,6 +15,11 @@ public sealed class GitChangedFile
 
     public string Path { get; }
 
+    public string DiffPath =>
+        Path.Contains(" -> ", System.StringComparison.Ordinal)
+            ? Path[(Path.LastIndexOf(" -> ", System.StringComparison.Ordinal) + 4)..]
+            : Path;
+
     public string StatusCode => $"{IndexStatus}{WorkingTreeStatus}";
 
     public bool IsUntracked => IndexStatus == "?" && WorkingTreeStatus == "?";

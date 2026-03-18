@@ -57,6 +57,21 @@ public sealed class GitService : IGitService
         return BuildMutationMessage(result, "Commit created successfully.");
     }
 
+    public async Task<string> GetDiffAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+
+        if (changedFile.IsUntracked)
+        {
+            return await BuildUntrackedFileDiffAsync(repositoryPath, changedFile, cancellationToken);
+        }
+
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "diff", "HEAD", "--", changedFile.DiffPath);
+        return string.IsNullOrWhiteSpace(result.StandardOutput)
+            ? "No textual diff is available for this file."
+            : result.StandardOutput;
+    }
+
     private async Task EnsureGitRepositoryAsync(string repositoryPath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath) || !Directory.Exists(repositoryPath))
@@ -88,6 +103,40 @@ public sealed class GitService : IGitService
         catch (GitServiceException exception) when (exception.Message.Contains("does not have any commits yet", StringComparison.OrdinalIgnoreCase))
         {
             return Array.Empty<GitCommitItem>();
+        }
+    }
+
+    private static async Task<string> BuildUntrackedFileDiffAsync(
+        string repositoryPath,
+        GitChangedFile changedFile,
+        CancellationToken cancellationToken)
+    {
+        var filePath = Path.Combine(repositoryPath, changedFile.DiffPath);
+        if (!File.Exists(filePath))
+        {
+            return "Diff preview is unavailable because the file no longer exists on disk.";
+        }
+
+        try
+        {
+            var content = await File.ReadAllTextAsync(filePath, cancellationToken);
+            var lines = content.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+            var diffLines = new List<string>
+            {
+                $"diff --git a/{changedFile.DiffPath} b/{changedFile.DiffPath}",
+                "new file mode 100644",
+                "index 0000000..0000000",
+                "--- /dev/null",
+                $"+++ b/{changedFile.DiffPath}",
+                $"@@ -0,0 +1,{lines.Length} @@"
+            };
+
+            diffLines.AddRange(lines.Select(line => $"+{line}"));
+            return string.Join(Environment.NewLine, diffLines);
+        }
+        catch (IOException)
+        {
+            return "Diff preview is unavailable for this file.";
         }
     }
 
