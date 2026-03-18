@@ -245,42 +245,21 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Row="1"
-                            x:Name="DiffViewport"
-                            Background="#0F172A"
-                            MinHeight="0"
-                            ClipToBounds="True"
-                            PointerWheelChanged="OnDiffViewportPointerWheelChanged">
-                        <ScrollViewer x:Name="DiffScrollViewer"
-                                      HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Visible"
-                                      AllowAutoHide="False">
-                            <ItemsControl ItemsSource="{Binding SelectedDiffLines}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="model:GitDiffLine">
-                                        <Border Classes="diff-line"
-                                                Background="{Binding Background}">
-                                            <Grid ColumnDefinitions="56,56,*">
-                                                <Border Classes="diff-gutter">
-                                                    <TextBlock Classes="diff-line-number"
-                                                               Text="{Binding LeftLineNumber}" />
-                                                </Border>
-                                                <Border Grid.Column="1" Classes="diff-gutter">
-                                                    <TextBlock Classes="diff-line-number"
-                                                               Text="{Binding RightLineNumber}" />
-                                                </Border>
-                                                <Border Grid.Column="2" Classes="diff-content">
-                                                    <TextBlock Classes="diff-text"
-                                                               Foreground="{Binding Foreground}"
-                                                               Text="{Binding Text}" />
-                                                </Border>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </Border>
+                    <TextBox Grid.Row="1"
+                             x:Name="DiffTextBox"
+                             Margin="0"
+                             Padding="18,14"
+                             Background="#0F172A"
+                             Foreground="#D8E1EE"
+                             BorderThickness="0"
+                             FontFamily="Cascadia Mono, Menlo, Consolas, Monaco, monospace"
+                             FontSize="13"
+                             IsReadOnly="True"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             Text="{Binding SelectedDiffDisplayText}" />
                 </Grid>
             </Border>
         </Grid>

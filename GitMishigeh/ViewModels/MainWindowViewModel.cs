@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -33,7 +34,6 @@ public partial class MainWindowViewModel : ViewModelBase
         _recentRepositoryStore = recentRepositoryStore;
 
         ChangedFiles = new ObservableCollection<GitChangedFile>();
-        SelectedDiffLines = new ObservableCollection<GitDiffLine>();
         RecentCommits = new ObservableCollection<GitCommitItem>();
         RecentRepositories = new ObservableCollection<RecentRepository>();
 
@@ -51,15 +51,13 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusSummary = "Repository details will appear here.";
         SelectedDiffHeader = "Diff Preview";
         SelectedDiff = "Select a changed file to inspect its diff.";
-        SyncCollection(SelectedDiffLines, BuildDiffLines(SelectedDiff));
+        SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
 
         ChangedFiles.CollectionChanged += (_, _) => NotifyCommandStateChanged();
         _ = LoadRecentRepositoriesAsync();
     }
 
     public ObservableCollection<GitChangedFile> ChangedFiles { get; }
-
-    public ObservableCollection<GitDiffLine> SelectedDiffLines { get; }
 
     public ObservableCollection<GitCommitItem> RecentCommits { get; }
 
@@ -105,6 +103,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string selectedDiff = string.Empty;
+
+    [ObservableProperty]
+    private string selectedDiffDisplayText = string.Empty;
 
     public bool HasChangedFiles => ChangedFiles.Count > 0;
 
@@ -363,7 +364,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         SelectedDiffHeader = changedFile.DiffPath;
         SelectedDiff = "Loading diff...";
-        SyncCollection(SelectedDiffLines, BuildDiffLines(SelectedDiff));
+        SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
 
         var cancellationTokenSource = new CancellationTokenSource();
         _diffCancellationTokenSource = cancellationTokenSource;
@@ -371,7 +372,7 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             SelectedDiff = await _gitService.GetDiffAsync(_selectedFolderPath, changedFile, cancellationTokenSource.Token);
-            SyncCollection(SelectedDiffLines, BuildDiffLines(SelectedDiff));
+            SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
         }
         catch (OperationCanceledException)
         {
@@ -379,7 +380,7 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (GitServiceException exception)
         {
             SelectedDiff = exception.Message;
-            SyncCollection(SelectedDiffLines, BuildDiffLines(SelectedDiff));
+            SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
         }
     }
 
@@ -387,7 +388,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         SelectedDiffHeader = header;
         SelectedDiff = content;
-        SyncCollection(SelectedDiffLines, BuildDiffLines(content));
+        SelectedDiffDisplayText = BuildDiffDisplayText(content);
     }
 
     private void SelectChangedFile(GitChangedFile? changedFile)
@@ -406,79 +407,141 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static IReadOnlyList<GitDiffLine> BuildDiffLines(string diffText)
+    private static string BuildDiffDisplayText(string diffText)
     {
         var lines = diffText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-        var diffLines = new List<GitDiffLine>(lines.Length);
-        var leftLineNumber = 0;
-        var rightLineNumber = 0;
+        var preamble = new List<string>();
+        var hunks = new List<List<string>>();
+        List<string>? currentHunk = null;
 
         foreach (var line in lines)
         {
             if (line.StartsWith("@@", StringComparison.Ordinal))
             {
-                ParseHunkHeader(line, out leftLineNumber, out rightLineNumber);
-                diffLines.Add(new GitDiffLine(line, "#7DD3FC", "#10273A", string.Empty, string.Empty, true));
+                currentHunk = new List<string> { line };
+                hunks.Add(currentHunk);
                 continue;
             }
 
-            if (line.StartsWith("+", StringComparison.Ordinal) && !line.StartsWith("+++", StringComparison.Ordinal))
+            if (currentHunk is not null)
             {
-                diffLines.Add(new GitDiffLine(
-                    line,
-                    "#DCFCE7",
-                    "#10261C",
-                    string.Empty,
-                    rightLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    true));
-                rightLineNumber++;
+                currentHunk.Add(line);
                 continue;
             }
 
-            if (line.StartsWith("-", StringComparison.Ordinal) && !line.StartsWith("---", StringComparison.Ordinal))
+            if (!IsDiffMetadataLine(line))
             {
-                diffLines.Add(new GitDiffLine(
-                    line,
-                    "#FECACA",
-                    "#34131C",
-                    leftLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    string.Empty,
-                    true));
-                leftLineNumber++;
-                continue;
-            }
-
-            if (line.StartsWith("diff --git", StringComparison.Ordinal) ||
-                line.StartsWith("index ", StringComparison.Ordinal) ||
-                line.StartsWith("---", StringComparison.Ordinal) ||
-                line.StartsWith("+++", StringComparison.Ordinal) ||
-                line.StartsWith("new file mode", StringComparison.Ordinal))
-            {
-                diffLines.Add(new GitDiffLine(line, "#A5B4CC", "#111827", string.Empty, string.Empty, true));
-                continue;
-            }
-
-            if (line.StartsWith("\\", StringComparison.Ordinal))
-            {
-                diffLines.Add(new GitDiffLine(line, "#94A3B8", "#111827", string.Empty, string.Empty));
-                continue;
-            }
-
-            diffLines.Add(new GitDiffLine(
-                line,
-                "#D8DEE9",
-                "Transparent",
-                leftLineNumber > 0 ? leftLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
-                rightLineNumber > 0 ? rightLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty));
-
-            if (!string.IsNullOrEmpty(line))
-            {
-                leftLineNumber++;
-                rightLineNumber++;
+                preamble.Add(line);
             }
         }
 
-        return diffLines;
+        if (hunks.Count == 0)
+        {
+            var preambleText = string.Join(Environment.NewLine, preamble).Trim();
+            return string.IsNullOrWhiteSpace(preambleText) ? diffText : preambleText;
+        }
+
+        var builder = new System.Text.StringBuilder();
+
+        if (preamble.Count > 0)
+        {
+            AppendSection(builder, preamble);
+        }
+
+        foreach (var hunk in hunks)
+        {
+            AppendSection(builder, hunk);
+        }
+
+        return builder.ToString().TrimEnd('\r', '\n');
+    }
+
+    private static void AppendSection(System.Text.StringBuilder builder, IReadOnlyList<string> lines)
+    {
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        if (builder.Length > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine();
+        }
+
+        builder.AppendLine(lines[0]);
+
+        for (var index = 1; index < lines.Count; index++)
+        {
+            builder.AppendLine(lines[index]);
+        }
+    }
+
+    private static bool IsDiffMetadataLine(string line) =>
+        line.StartsWith("diff --git", StringComparison.Ordinal) ||
+        line.StartsWith("index ", StringComparison.Ordinal) ||
+        line.StartsWith("---", StringComparison.Ordinal) ||
+        line.StartsWith("+++", StringComparison.Ordinal) ||
+        line.StartsWith("new file mode", StringComparison.Ordinal) ||
+        line.StartsWith("deleted file mode", StringComparison.Ordinal);
+    private static GitDiffLine CreateDiffLine(string line, ref int leftLineNumber, ref int rightLineNumber)
+    {
+        if (line.StartsWith("+", StringComparison.Ordinal) && !line.StartsWith("+++", StringComparison.Ordinal))
+        {
+            var diffLine = new GitDiffLine(
+                line,
+                "#DCFCE7",
+                "#10261C",
+                string.Empty,
+                rightLineNumber.ToString(CultureInfo.InvariantCulture),
+                true);
+
+            rightLineNumber++;
+            return diffLine;
+        }
+
+        if (line.StartsWith("-", StringComparison.Ordinal) && !line.StartsWith("---", StringComparison.Ordinal))
+        {
+            var diffLine = new GitDiffLine(
+                line,
+                "#FECACA",
+                "#34131C",
+                leftLineNumber.ToString(CultureInfo.InvariantCulture),
+                string.Empty,
+                true);
+
+            leftLineNumber++;
+            return diffLine;
+        }
+
+        if (line.StartsWith("diff --git", StringComparison.Ordinal) ||
+            line.StartsWith("index ", StringComparison.Ordinal) ||
+            line.StartsWith("---", StringComparison.Ordinal) ||
+            line.StartsWith("+++", StringComparison.Ordinal) ||
+            line.StartsWith("new file mode", StringComparison.Ordinal))
+        {
+            return new GitDiffLine(line, "#A5B4CC", "#111827", string.Empty, string.Empty, true);
+        }
+
+        if (line.StartsWith("\\", StringComparison.Ordinal))
+        {
+            return new GitDiffLine(line, "#94A3B8", "#111827", string.Empty, string.Empty);
+        }
+
+        var contextLine = new GitDiffLine(
+            line,
+            "#D8DEE9",
+            "Transparent",
+            leftLineNumber > 0 ? leftLineNumber.ToString(CultureInfo.InvariantCulture) : string.Empty,
+            rightLineNumber > 0 ? rightLineNumber.ToString(CultureInfo.InvariantCulture) : string.Empty);
+
+        if (!string.IsNullOrEmpty(line))
+        {
+            leftLineNumber++;
+            rightLineNumber++;
+        }
+
+        return contextLine;
     }
 
     private static void ParseHunkHeader(string line, out int leftStart, out int rightStart)
@@ -502,6 +565,6 @@ public partial class MainWindowViewModel : ViewModelBase
         var commaIndex = trimmed.IndexOf(',');
         var number = commaIndex >= 0 ? trimmed[..commaIndex] : trimmed;
 
-        return int.TryParse(number, out var value) ? value : 0;
+        return int.TryParse(number, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
     }
 }

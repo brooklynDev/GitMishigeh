@@ -10,6 +10,7 @@
   
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <Style Selector="Window">
             <Setter Property="Background" Value="#0B1019" />
             <Setter Property="Foreground" Value="#E6EBF4" />
@@ -107,7 +108,14 @@
             <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="ListBox.diff-list ListBoxItem">
+            <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="ListBox.diff-list ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Border.list-item">
             <Setter Property="Background" Value="Transparent" />
@@ -144,12 +152,29 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="#93C5FD" />
         </Style>
+        <Style Selector="Border.diff-section">
+            <Setter Property="Background" Value="#0B1322" />
+            <Setter Property="BorderBrush" Value="#1F2B40" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Margin" Value="12,12,12,0" />
+        </Style>
+        <Style Selector="Border.diff-section-header">
+            <Setter Property="Background" Value="#101A2B" />
+            <Setter Property="BorderBrush" Value="#1F2B40" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Margin" Value="12,0,12,0" />
+            <Setter Property="CornerRadius" Value="12,12,0,0" />
+        </Style>
         <Style Selector="Border.diff-line">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Margin" Value="12,0,12,0" />
         </Style>
         <Style Selector="Border.diff-content">
             <Setter Property="Padding" Value="12,4" />
+            <Setter Property="ClipToBounds" Value="True" />
         </Style>
         <Style Selector="Border.diff-gutter">
             <Setter Property="Background" Value="#0D1420" />
@@ -162,10 +187,19 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="TextWrapping" Value="NoWrap" />
         </Style>
+        <Style Selector="SelectableTextBlock.diff-text">
+            <Setter Property="FontFamily" Value="Courier New, Consolas, monospace" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
         <Style Selector="TextBlock.diff-header">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="#E2E8F0" />
+        </Style>
+        <Style Selector="TextBlock.diff-section-label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#93C5FD" />
         </Style>
         <Style Selector="TextBlock.diff-line-number">
             <Setter Property="FontFamily" Value="Courier New, Consolas, monospace" />
