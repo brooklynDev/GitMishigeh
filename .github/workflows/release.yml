@@ -1,0 +1,56 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install ImageMagick
+        run: brew install imagemagick
+
+      - name: Build packages
+        run: make publish
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitMishigeh-builds
+          path: |
+            artifacts/macos/GitMishigeh-macOS-AppleSilicon.zip
+            artifacts/macos/GitMishigeh-macOS-Intel.zip
+            artifacts/windows/GitMishigeh-Windows-x64.zip
+            artifacts/linux/GitMishigeh-Linux-x64.tar.gz
+
+      - name: Publish release assets
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: Latest Build
+          body: |
+            Automated latest build artifacts for GitMishigeh.
+            Commit: ${{ github.sha }}
+          allowUpdates: true
+          replacesArtifacts: true
+          prerelease: true
+          artifacts: |
+            artifacts/macos/GitMishigeh-macOS-AppleSilicon.zip
+            artifacts/macos/GitMishigeh-macOS-Intel.zip
+            artifacts/windows/GitMishigeh-Windows-x64.zip
+            artifacts/linux/GitMishigeh-Linux-x64.tar.gz
