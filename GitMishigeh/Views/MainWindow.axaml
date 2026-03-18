@@ -1,20 +1,211 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GitMishigeh.ViewModels"
+        xmlns:model="using:GitMishigeh.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="900"
         x:Class="GitMishigeh.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="GitMishigeh">
+        Title="GitMishigeh"
+        Width="1440"
+        Height="900"
+        MinWidth="1120"
+        MinHeight="760">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel/>
+        <vm:MainWindowViewModel />
     </Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <Window.Styles>
+        <Style Selector="TextBlock.app-title">
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#F8FAFC" />
+        </Style>
+        <Style Selector="TextBlock.subtle">
+            <Setter Property="Foreground" Value="#94A3B8" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="20">
+        <Border Classes="card toolbar-shell">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="12">
+                <StackPanel>
+                    <TextBlock Classes="app-title" Text="GitMishigeh" />
+                    <TextBlock Classes="subtle" Text="A lightweight desktop Git workspace" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Command="{Binding OpenRepoCommand}"
+                        VerticalAlignment="Center"
+                        Content="Open Repo" />
+
+                <Button Grid.Column="2"
+                        Command="{Binding RefreshCommand}"
+                        VerticalAlignment="Center"
+                        Content="Refresh" />
+
+                <Border Grid.Column="3"
+                        Background="#0D1424"
+                        BorderBrush="#22304A"
+                        BorderThickness="1"
+                        CornerRadius="14"
+                        Padding="16,12">
+                    <StackPanel>
+                        <TextBlock Classes="label" Text="Repository Path" />
+                        <TextBlock Classes="value"
+                                   Text="{Binding RepositoryPath}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="320,*,360" ColumnSpacing="20">
+            <Border Grid.Column="0" Classes="card">
+                <StackPanel Spacing="18">
+                    <TextBlock Classes="section-title" Text="Repository" />
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="label" Text="Current Branch" />
+                        <TextBlock FontSize="28"
+                                   FontWeight="SemiBold"
+                                   Foreground="#F8FAFC"
+                                   Text="{Binding CurrentBranch}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="label" Text="Status Summary" />
+                        <TextBlock Classes="value"
+                                   Text="{Binding StatusSummary}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Button Grid.Column="0"
+                                Command="{Binding StageAllCommand}"
+                                Content="Stage All" />
+                        <Button Grid.Column="1"
+                                Command="{Binding UnstageAllCommand}"
+                                Content="Unstage All" />
+                    </Grid>
+
+                    <Border Background="#0D1424"
+                            BorderBrush="#22304A"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Padding="14">
+                        <StackPanel Spacing="6">
+                            <TextBlock Classes="label" Text="Session State" />
+                            <TextBlock Classes="value" Text="{Binding OutputMessage}" TextWrapping="Wrap" />
+                            <TextBlock Classes="subtle"
+                                       IsVisible="{Binding IsBusy}"
+                                       Text="Working..." />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Classes="card">
+                <Grid RowDefinitions="Auto,*" RowSpacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="section-title" Text="Changed Files" />
+                        <Border Grid.Column="1" Classes="badge">
+                            <TextBlock Classes="badge-text" Text="{Binding ChangedFiles.Count, StringFormat='{}{0} files'}" />
+                        </Border>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" Classes="list-scroll">
+                        <ListBox ItemsSource="{Binding ChangedFiles}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="model:GitChangedFile">
+                                    <Border Classes="list-item">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <Border Classes="badge" VerticalAlignment="Top">
+                                                <TextBlock Classes="badge-text" Text="{Binding StatusCode}" />
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1" Spacing="4">
+                                                <TextBlock FontWeight="SemiBold"
+                                                           Foreground="#F8FAFC"
+                                                           Text="{Binding Path}"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock Classes="subtle" Text="{Binding StatusLabel}" />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Column="2"
+                                                       VerticalAlignment="Top"
+                                                       Classes="subtle"
+                                                       Text="{Binding IndexStatus}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Classes="card">
+                <Grid RowDefinitions="Auto,*" RowSpacing="16">
+                    <TextBlock Classes="section-title" Text="Recent Commits" />
+
+                    <ScrollViewer Grid.Row="1" Classes="list-scroll">
+                        <ListBox ItemsSource="{Binding RecentCommits}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="model:GitCommitItem">
+                                    <Border Classes="list-item">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Foreground="#C7D2FE"
+                                                       Text="{Binding ShortHash}" />
+                                            <TextBlock Foreground="#F8FAFC"
+                                                       Text="{Binding Message}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Classes="card">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="14">
+                <StackPanel>
+                    <TextBlock Classes="section-title" Text="Commit" />
+                    <TextBlock Classes="subtle" Text="Write a concise message and create a commit when you're ready." />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Classes="primary"
+                        Command="{Binding CommitCommand}"
+                        VerticalAlignment="Center"
+                        Content="Commit" />
+
+                <TextBox Grid.Row="1"
+                         Watermark="Describe your changes"
+                         Text="{Binding CommitMessage, UpdateSourceTrigger=PropertyChanged}" />
+
+                <Border Grid.Row="1"
+                        Grid.Column="1"
+                        Background="#0D1424"
+                        BorderBrush="#22304A"
+                        BorderThickness="1"
+                        CornerRadius="14"
+                        Padding="14"
+                        MinWidth="260">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="label" Text="Output" />
+                        <TextBlock Classes="value" Text="{Binding OutputMessage}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
 
 </Window>
