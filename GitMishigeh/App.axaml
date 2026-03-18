@@ -79,6 +79,10 @@
             <Setter Property="BorderBrush" Value="#2B3A57" />
             <Setter Property="Foreground" Value="#A7B3C7" />
         </Style>
+        <Style Selector="CheckBox.file-selector">
+            <Setter Property="Foreground" Value="#93C5FD" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="#0F172A" />
             <Setter Property="Foreground" Value="#E5EAF3" />
@@ -97,6 +101,13 @@
             <Setter Property="Margin" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ListBox.diff-list">
+            <Setter Property="Background" Value="#0F172A" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ListBox.diff-list ListBoxItem">
+            <Setter Property="Margin" Value="0" />
         </Style>
         <Style Selector="Border.list-item">
             <Setter Property="Background" Value="Transparent" />
@@ -134,13 +145,34 @@
             <Setter Property="Foreground" Value="#93C5FD" />
         </Style>
         <Style Selector="Border.diff-line">
-            <Setter Property="Padding" Value="10,2" />
+            <Setter Property="Padding" Value="0" />
             <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.diff-content">
+            <Setter Property="Padding" Value="12,4" />
+        </Style>
+        <Style Selector="Border.diff-gutter">
+            <Setter Property="Background" Value="#0D1420" />
+            <Setter Property="BorderBrush" Value="#1F2937" />
+            <Setter Property="BorderThickness" Value="0,0,1,0" />
+            <Setter Property="Padding" Value="10,3" />
         </Style>
         <Style Selector="TextBlock.diff-text">
             <Setter Property="FontFamily" Value="Courier New, Consolas, monospace" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
+        <Style Selector="TextBlock.diff-header">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#E2E8F0" />
+        </Style>
+        <Style Selector="TextBlock.diff-line-number">
+            <Setter Property="FontFamily" Value="Courier New, Consolas, monospace" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#64748B" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="ScrollViewer.list-scroll">
             <Setter Property="VerticalScrollBarVisibility" Value="Auto" />

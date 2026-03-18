@@ -39,6 +39,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         OpenRepoCommand = new AsyncRelayCommand(OpenRepoAsync, CanOpenRepo);
         OpenRecentRepositoryCommand = new AsyncRelayCommand<RecentRepository?>(OpenRecentRepositoryAsync, CanOpenRecentRepository);
+        SelectChangedFileCommand = new RelayCommand<GitChangedFile?>(SelectChangedFile);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
         StageAllCommand = new AsyncRelayCommand(StageAllAsync, CanStageAll);
         UnstageAllCommand = new AsyncRelayCommand(UnstageAllAsync, CanUnstageAll);
@@ -67,6 +68,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand OpenRepoCommand { get; }
 
     public IAsyncRelayCommand<RecentRepository?> OpenRecentRepositoryCommand { get; }
+
+    public IRelayCommand<GitChangedFile?> SelectChangedFileCommand { get; }
 
     public IAsyncRelayCommand RefreshCommand { get; }
 
@@ -318,6 +321,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedChangedFileChanged(GitChangedFile? value)
     {
+        UpdateSelectedFlags(value);
         _ = LoadDiffAsync(value);
     }
 
@@ -386,28 +390,61 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncCollection(SelectedDiffLines, BuildDiffLines(content));
     }
 
+    private void SelectChangedFile(GitChangedFile? changedFile)
+    {
+        if (changedFile is not null)
+        {
+            SelectedChangedFile = changedFile;
+        }
+    }
+
+    private void UpdateSelectedFlags(GitChangedFile? selectedFile)
+    {
+        foreach (var changedFile in ChangedFiles)
+        {
+            changedFile.IsSelected = ReferenceEquals(changedFile, selectedFile);
+        }
+    }
+
     private static IReadOnlyList<GitDiffLine> BuildDiffLines(string diffText)
     {
         var lines = diffText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
         var diffLines = new List<GitDiffLine>(lines.Length);
+        var leftLineNumber = 0;
+        var rightLineNumber = 0;
 
         foreach (var line in lines)
         {
+            if (line.StartsWith("@@", StringComparison.Ordinal))
+            {
+                ParseHunkHeader(line, out leftLineNumber, out rightLineNumber);
+                diffLines.Add(new GitDiffLine(line, "#7DD3FC", "#10273A", string.Empty, string.Empty, true));
+                continue;
+            }
+
             if (line.StartsWith("+", StringComparison.Ordinal) && !line.StartsWith("+++", StringComparison.Ordinal))
             {
-                diffLines.Add(new GitDiffLine(line, "#D8FFE5", "#163326"));
+                diffLines.Add(new GitDiffLine(
+                    line,
+                    "#DCFCE7",
+                    "#10261C",
+                    string.Empty,
+                    rightLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    true));
+                rightLineNumber++;
                 continue;
             }
 
             if (line.StartsWith("-", StringComparison.Ordinal) && !line.StartsWith("---", StringComparison.Ordinal))
             {
-                diffLines.Add(new GitDiffLine(line, "#FFD7D9", "#391A21"));
-                continue;
-            }
-
-            if (line.StartsWith("@@", StringComparison.Ordinal))
-            {
-                diffLines.Add(new GitDiffLine(line, "#8FD0FF", "#12263B"));
+                diffLines.Add(new GitDiffLine(
+                    line,
+                    "#FECACA",
+                    "#34131C",
+                    leftLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    string.Empty,
+                    true));
+                leftLineNumber++;
                 continue;
             }
 
@@ -417,13 +454,54 @@ public partial class MainWindowViewModel : ViewModelBase
                 line.StartsWith("+++", StringComparison.Ordinal) ||
                 line.StartsWith("new file mode", StringComparison.Ordinal))
             {
-                diffLines.Add(new GitDiffLine(line, "#B9C3D9", "#111827"));
+                diffLines.Add(new GitDiffLine(line, "#A5B4CC", "#111827", string.Empty, string.Empty, true));
                 continue;
             }
 
-            diffLines.Add(new GitDiffLine(line, "#D8DEE9", "Transparent"));
+            if (line.StartsWith("\\", StringComparison.Ordinal))
+            {
+                diffLines.Add(new GitDiffLine(line, "#94A3B8", "#111827", string.Empty, string.Empty));
+                continue;
+            }
+
+            diffLines.Add(new GitDiffLine(
+                line,
+                "#D8DEE9",
+                "Transparent",
+                leftLineNumber > 0 ? leftLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
+                rightLineNumber > 0 ? rightLineNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty));
+
+            if (!string.IsNullOrEmpty(line))
+            {
+                leftLineNumber++;
+                rightLineNumber++;
+            }
         }
 
         return diffLines;
+    }
+
+    private static void ParseHunkHeader(string line, out int leftStart, out int rightStart)
+    {
+        leftStart = 0;
+        rightStart = 0;
+
+        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+        {
+            return;
+        }
+
+        leftStart = ParseRangeStart(parts[1]);
+        rightStart = ParseRangeStart(parts[2]);
+    }
+
+    private static int ParseRangeStart(string part)
+    {
+        var trimmed = part.TrimStart('-', '+');
+        var commaIndex = trimmed.IndexOf(',');
+        var number = commaIndex >= 0 ? trimmed[..commaIndex] : trimmed;
+
+        return int.TryParse(number, out var value) ? value : 0;
     }
 }

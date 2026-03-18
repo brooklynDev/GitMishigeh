@@ -1,6 +1,8 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace GitMishigeh.Models;
 
-public sealed class GitChangedFile
+public partial class GitChangedFile : ObservableObject
 {
     public GitChangedFile(string indexStatus, string workingTreeStatus, string path)
     {
@@ -33,4 +35,7 @@ public sealed class GitChangedFile
         IsStaged && IsModified ? "Staged + Modified" :
         IsStaged ? "Staged" :
         "Modified";
+
+    [ObservableProperty]
+    private bool isSelected;
 }
