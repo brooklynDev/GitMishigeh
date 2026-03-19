@@ -223,6 +223,18 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="model:GitChangedFile">
                                     <Border Classes="list-item">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{Binding StageMenuText}"
+                                                          IsEnabled="{Binding CanToggleStage}"
+                                                          Command="{Binding #RootWindow.DataContext.ToggleStageFileCommand}"
+                                                          CommandParameter="{Binding .}" />
+                                                <MenuItem Header="{Binding DiscardMenuText}"
+                                                          IsEnabled="{Binding CanDiscardChanges}"
+                                                          Command="{Binding #RootWindow.DataContext.DiscardFileCommand}"
+                                                          CommandParameter="{Binding .}" />
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Grid ColumnDefinitions="72,*" ColumnSpacing="10">
                                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                 <CheckBox Classes="file-selector"

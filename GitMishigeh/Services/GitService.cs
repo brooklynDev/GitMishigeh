@@ -62,6 +62,37 @@ public sealed class GitService : IGitService
         return BuildMutationMessage(result, $"Unstaged {changedFile.DiffPath}.");
     }
 
+    public async Task<string> DiscardFileAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+
+        if (changedFile.IsUntracked)
+        {
+            DeleteUntrackedPath(repositoryPath, changedFile.DiffPath);
+            return $"Deleted untracked {changedFile.DiffPath}.";
+        }
+
+        GitCommandResult result;
+        if (string.Equals(changedFile.IndexStatus, "A", StringComparison.Ordinal))
+        {
+            result = await RunGitCommandAsync(repositoryPath, cancellationToken, "rm", "-f", "--", changedFile.DiffPath);
+        }
+        else
+        {
+            result = await RunGitCommandAsync(
+                repositoryPath,
+                cancellationToken,
+                "restore",
+                "--source=HEAD",
+                "--staged",
+                "--worktree",
+                "--",
+                changedFile.DiffPath);
+        }
+
+        return BuildMutationMessage(result, $"Discarded changes in {changedFile.DiffPath}.");
+    }
+
     public async Task<string> PullAsync(string repositoryPath, CancellationToken cancellationToken = default)
     {
         await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
@@ -250,6 +281,21 @@ public sealed class GitService : IGitService
         }
 
         return new GitCommandResult(standardOutput.Trim(), standardError.Trim());
+    }
+
+    private static void DeleteUntrackedPath(string repositoryPath, string diffPath)
+    {
+        var fullPath = Path.Combine(repositoryPath, diffPath);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+            return;
+        }
+
+        if (Directory.Exists(fullPath))
+        {
+            Directory.Delete(fullPath, recursive: true);
+        }
     }
 
     private static List<GitChangedFile> ParseChangedFiles(string statusOutput)

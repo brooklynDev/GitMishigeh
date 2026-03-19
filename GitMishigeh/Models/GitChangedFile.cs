@@ -47,4 +47,10 @@ public partial class GitChangedFile : ObservableObject
     public string? StatusLabelOverride { get; }
 
     public bool CanToggleStage { get; }
+
+    public bool CanDiscardChanges => CanToggleStage;
+
+    public string StageMenuText => IsStaged ? "Unstage" : "Stage";
+
+    public string DiscardMenuText => IsUntracked ? "Delete File" : "Discard Changes";
 }

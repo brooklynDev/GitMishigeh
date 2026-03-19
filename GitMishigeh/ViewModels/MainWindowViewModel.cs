@@ -58,6 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StageAllCommand = new AsyncRelayCommand(StageAllAsync, CanStageAll);
         UnstageAllCommand = new AsyncRelayCommand(UnstageAllAsync, CanUnstageAll);
         ToggleStageFileCommand = new AsyncRelayCommand<GitChangedFile?>(ToggleStageFileAsync, CanToggleStageFile);
+        DiscardFileCommand = new AsyncRelayCommand<GitChangedFile?>(DiscardFileAsync, CanDiscardFile);
         CommitCommand = new AsyncRelayCommand(CommitAsync, CanCommit);
 
         _autoRefreshTimer = new DispatcherTimer
@@ -111,6 +112,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand UnstageAllCommand { get; }
 
     public IAsyncRelayCommand<GitChangedFile?> ToggleStageFileCommand { get; }
+
+    public IAsyncRelayCommand<GitChangedFile?> DiscardFileCommand { get; }
 
     public IAsyncRelayCommand CommitCommand { get; }
 
@@ -181,6 +184,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanToggleStageFile(GitChangedFile? changedFile) =>
         !IsBusy && _hasValidRepository && changedFile is not null && changedFile.CanToggleStage;
+
+    private bool CanDiscardFile(GitChangedFile? changedFile) =>
+        !IsBusy && _hasValidRepository && changedFile is not null && changedFile.CanDiscardChanges;
 
     private bool CanCommit() =>
         !IsBusy &&
@@ -275,6 +281,18 @@ public partial class MainWindowViewModel : ViewModelBase
             () => changedFile.IsStaged
                 ? _gitService.UnstageFileAsync(_selectedFolderPath!, changedFile)
                 : _gitService.StageFileAsync(_selectedFolderPath!, changedFile),
+            clearCommitMessage: false);
+    }
+
+    private Task DiscardFileAsync(GitChangedFile? changedFile)
+    {
+        if (changedFile is null || !changedFile.CanDiscardChanges)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteGitActionAsync(
+            () => _gitService.DiscardFileAsync(_selectedFolderPath!, changedFile),
             clearCommitMessage: false);
     }
 
@@ -442,6 +460,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StageAllCommand.NotifyCanExecuteChanged();
         UnstageAllCommand.NotifyCanExecuteChanged();
         ToggleStageFileCommand.NotifyCanExecuteChanged();
+        DiscardFileCommand.NotifyCanExecuteChanged();
         CommitCommand.NotifyCanExecuteChanged();
     }
 
