@@ -23,10 +23,13 @@ public sealed class GitService : IGitService
         var statusOutput = await statusTask;
         var recentCommits = await logTask;
         var changedFiles = ParseChangedFiles(statusOutput.StandardOutput);
+        ParseRemoteTrackingCounts(statusOutput.StandardOutput, out var aheadCount, out var behindCount);
 
         return new GitRepositoryState(
             ParseCurrentBranch(statusOutput.StandardOutput),
             BuildStatusSummary(changedFiles),
+            aheadCount,
+            behindCount,
             changedFiles,
             recentCommits);
     }
@@ -280,6 +283,47 @@ public sealed class GitService : IGitService
 
         var endIndex = branchInfo.IndexOfAny(new[] { '.', ' ', '[' });
         return endIndex >= 0 ? branchInfo[..endIndex] : branchInfo;
+    }
+
+    private static void ParseRemoteTrackingCounts(string statusOutput, out int aheadCount, out int behindCount)
+    {
+        aheadCount = 0;
+        behindCount = 0;
+
+        var header = statusOutput
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(header))
+        {
+            return;
+        }
+
+        var aheadMarker = "ahead ";
+        var behindMarker = "behind ";
+
+        var aheadIndex = header.IndexOf(aheadMarker, StringComparison.Ordinal);
+        if (aheadIndex >= 0)
+        {
+            aheadCount = ParseTrackingCount(header, aheadIndex + aheadMarker.Length);
+        }
+
+        var behindIndex = header.IndexOf(behindMarker, StringComparison.Ordinal);
+        if (behindIndex >= 0)
+        {
+            behindCount = ParseTrackingCount(header, behindIndex + behindMarker.Length);
+        }
+    }
+
+    private static int ParseTrackingCount(string header, int startIndex)
+    {
+        var endIndex = startIndex;
+        while (endIndex < header.Length && char.IsDigit(header[endIndex]))
+        {
+            endIndex++;
+        }
+
+        return int.TryParse(header[startIndex..endIndex], out var count) ? count : 0;
     }
 
     private static string BuildStatusSummary(IReadOnlyCollection<GitChangedFile> changedFiles)

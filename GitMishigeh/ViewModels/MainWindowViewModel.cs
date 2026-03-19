@@ -24,6 +24,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _diffCancellationTokenSource;
     private bool _isAutoRefreshing;
     private string _repositoryFingerprint = string.Empty;
+    private int _aheadCount;
+    private int _behindCount;
 
     public MainWindowViewModel() : this(new GitService(), new FolderPickerService(), new RecentRepositoryStore())
     {
@@ -132,6 +134,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasRecentRepositories => RecentRepositories.Count > 0;
 
     public bool HasDiffSections => DiffSections.Count > 0;
+
+    public string PushButtonText => _aheadCount > 0 ? $"Push ({_aheadCount})" : "Push";
 
     private bool CanOpenRepo() => !IsBusy;
 
@@ -270,11 +274,14 @@ public partial class MainWindowViewModel : ViewModelBase
         _hasValidRepository = true;
         CurrentBranch = repositoryState.CurrentBranch;
         StatusSummary = repositoryState.StatusSummary;
+        _aheadCount = repositoryState.AheadCount;
+        _behindCount = repositoryState.BehindCount;
         SyncCollection(ChangedFiles, repositoryState.ChangedFiles);
         SyncCollection(RecentCommits, repositoryState.RecentCommits);
         UpdateSelectedFileAfterRefresh();
         OnPropertyChanged(nameof(HasChangedFiles));
         OnPropertyChanged(nameof(HasRecentCommits));
+        OnPropertyChanged(nameof(PushButtonText));
         _repositoryFingerprint = BuildRepositoryFingerprint(repositoryState);
     }
 
@@ -283,11 +290,14 @@ public partial class MainWindowViewModel : ViewModelBase
         _hasValidRepository = false;
         CurrentBranch = "Unavailable";
         StatusSummary = "The selected folder is not a Git repository.";
+        _aheadCount = 0;
+        _behindCount = 0;
         SyncCollection(ChangedFiles, Array.Empty<GitChangedFile>());
         SyncCollection(RecentCommits, Array.Empty<GitCommitItem>());
         ClearDiffPreview("Diff Preview", "Select a valid Git repository to inspect file diffs.");
         OnPropertyChanged(nameof(HasChangedFiles));
         OnPropertyChanged(nameof(HasRecentCommits));
+        OnPropertyChanged(nameof(PushButtonText));
         OutputMessage = message;
         _repositoryFingerprint = string.Empty;
     }
@@ -724,6 +734,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var builder = new StringBuilder();
         builder.Append(repositoryState.CurrentBranch).Append('|');
         builder.Append(repositoryState.StatusSummary).Append('|');
+        builder.Append(repositoryState.AheadCount).Append('|');
+        builder.Append(repositoryState.BehindCount).Append('|');
 
         foreach (var changedFile in repositoryState.ChangedFiles)
         {

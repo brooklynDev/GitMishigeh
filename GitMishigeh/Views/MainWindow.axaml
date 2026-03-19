@@ -171,7 +171,7 @@
                 <Button Command="{Binding PullCommand}" Content="Pull" />
                 <Button Grid.Column="1"
                         Command="{Binding PushCommand}"
-                        Content="Push" />
+                        Content="{Binding PushButtonText}" />
                 <Button Grid.Column="2"
                         Command="{Binding StageAllCommand}"
                         Content="Stage All" />
