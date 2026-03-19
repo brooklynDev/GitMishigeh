@@ -80,6 +80,22 @@
             <Setter Property="BorderBrush" Value="#334156" />
             <Setter Property="Foreground" Value="#B2BED2" />
         </Style>
+        <Style Selector="Button.action-button">
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="MinHeight" Value="36" />
+        </Style>
+        <Style Selector="TextBlock.action-button-icon">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#C6D4E8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.action-button-text">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#E5EAF3" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
         <Style Selector="CheckBox.file-selector">
             <Setter Property="Foreground" Value="#93C5FD" />
             <Setter Property="VerticalAlignment" Value="Center" />

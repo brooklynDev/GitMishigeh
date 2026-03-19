@@ -467,10 +467,21 @@
             </Border>
 
             <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="10">
-                <Button Command="{Binding PullCommand}" Content="Pull" />
+                <Button Classes="action-button"
+                        Command="{Binding PullCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="action-button-icon" Text="↓" />
+                        <TextBlock Classes="action-button-text" Text="Pull" />
+                    </StackPanel>
+                </Button>
                 <Button Grid.Column="1"
-                        Command="{Binding PushCommand}"
-                        Content="{Binding PushButtonText}" />
+                        Classes="action-button"
+                        Command="{Binding PushCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="action-button-icon" Text="↑" />
+                        <TextBlock Classes="action-button-text" Text="{Binding PushButtonText}" />
+                    </StackPanel>
+                </Button>
                 <Button Grid.Column="2"
                         Command="{Binding StageAllCommand}"
                         Content="Stage All" />
