@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitMishigeh.Models;
@@ -16,6 +18,19 @@ namespace GitMishigeh.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private static readonly HashSet<string> PreviewableImageExtensions =
+    [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".webp",
+        ".ico",
+        ".tif",
+        ".tiff"
+    ];
+
     private readonly IGitService _gitService;
     private readonly IFolderPickerService _folderPickerService;
     private readonly IRecentRepositoryStore _recentRepositoryStore;
@@ -33,6 +48,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool _suppressCommitLoad;
     private bool _suppressRecentRepositoryOpen;
     private bool _suppressBranchSelectionSync;
+    private bool _isSynchronizingFileSelection;
     private bool _isApplyingPreferences;
     private bool _hasLoadedAppPreferences;
     private DateTimeOffset? _lastFetchedAt;
@@ -206,6 +222,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private string selectedDiff = string.Empty;
 
     [ObservableProperty]
+    private Bitmap? selectedImagePreview;
+
+    [ObservableProperty]
     private double navigationPaneWidth;
 
     [ObservableProperty]
@@ -222,6 +241,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasRecentRepositories => RecentRepositories.Count > 0;
 
     public bool HasDiffSections => DiffSections.Count > 0;
+
+    public bool HasImagePreview => SelectedImagePreview is not null;
+
+    public bool ShowsTextDiff => !HasImagePreview;
 
     public bool IsShowingCommitHistory => SelectedCommit is not null;
 
@@ -244,6 +267,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IsShowingCommitHistory && SelectedCommit is not null
             ? $"{SelectedCommit.ShortHash} {SelectedCommit.Message}"
             : StatusSummary;
+
+    public string DetailPaneMetaText => HasImagePreview ? "Image preview" : OutputMessage;
 
     private bool CanOpenRepo() => !IsBusy;
 
@@ -535,7 +560,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncCollection(Branches, repositoryState.Branches);
         SyncSelectedBranch();
         SyncCollection(Remotes, repositoryState.Remotes);
-        SyncCollection(ChangedFiles, repositoryState.ChangedFiles);
+        SyncFileCollection(ChangedFiles, repositoryState.ChangedFiles);
         SyncCollection(RecentCommits, repositoryState.RecentCommits);
 
         UpdateSelectedCommitAfterRefresh();
@@ -595,8 +620,8 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncCollection(Branches, Array.Empty<GitBranchItem>());
         SelectedBranch = null;
         SyncCollection(Remotes, Array.Empty<GitRemoteItem>());
-        SyncCollection(ChangedFiles, Array.Empty<GitChangedFile>());
-        SyncCollection(CommitFiles, Array.Empty<GitChangedFile>());
+        SyncFileCollection(ChangedFiles, Array.Empty<GitChangedFile>());
+        SyncFileCollection(CommitFiles, Array.Empty<GitChangedFile>());
         SyncCollection(RecentCommits, Array.Empty<GitCommitItem>());
         SelectedCommit = null;
         SelectedFileEntry = null;
@@ -722,6 +747,19 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private void SyncFileCollection(ObservableCollection<GitChangedFile> target, IEnumerable<GitChangedFile> items)
+    {
+        _isSynchronizingFileSelection = true;
+        try
+        {
+            SyncCollection(target, items);
+        }
+        finally
+        {
+            _isSynchronizingFileSelection = false;
+        }
+    }
+
     partial void OnCommitMessageChanged(string value)
     {
         CommitCommand.NotifyCanExecuteChanged();
@@ -777,6 +815,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedFileEntryChanged(GitChangedFile? value)
     {
+        if (_isSynchronizingFileSelection && value is null)
+        {
+            return;
+        }
+
         if (IsShowingCommitHistory)
         {
             _selectedCommitFilePath = value?.Path;
@@ -787,6 +830,11 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         _ = LoadDiffAsync(value);
+    }
+
+    partial void OnOutputMessageChanged(string value)
+    {
+        OnPropertyChanged(nameof(DetailPaneMetaText));
     }
 
     partial void OnSelectedBranchChanged(GitBranchItem? value)
@@ -825,7 +873,7 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var files = await _gitService.GetCommitFilesAsync(_selectedFolderPath, commit);
-            SyncCollection(CommitFiles, files);
+            SyncFileCollection(CommitFiles, files);
             OnPropertyChanged(nameof(VisibleFiles));
             OnPropertyChanged(nameof(HasVisibleFiles));
             UpdateSelectedFileForCurrentMode();
@@ -909,6 +957,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _diffCancellationTokenSource?.Cancel();
         _diffCancellationTokenSource?.Dispose();
         _diffCancellationTokenSource = null;
+        ClearImagePreview();
 
         if (!_hasValidRepository || string.IsNullOrWhiteSpace(_selectedFolderPath) || changedFile is null)
         {
@@ -921,6 +970,51 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
+            if (!IsShowingCommitHistory && TryResolvePreviewImagePath(changedFile, out var imagePath))
+            {
+                SelectedDiffHeader = changedFile.DiffPath;
+                SelectedDiff = "Loading image preview...";
+                ApplyDiffContent(SelectedDiff);
+
+                var bitmap = await LoadImagePreviewAsync(imagePath, cancellationTokenSource.Token);
+                if (cancellationTokenSource.IsCancellationRequested)
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+
+                SetSelectedImagePreview(bitmap);
+                SelectedDiff = $"Previewing {Path.GetFileName(imagePath)}";
+                return;
+            }
+
+            if (IsShowingCommitHistory && SelectedCommit is not null && IsPreviewableImageFile(changedFile))
+            {
+                SelectedDiffHeader = $"{SelectedCommit.ShortHash} • {changedFile.DiffPath}";
+                SelectedDiff = "Loading image preview...";
+                ApplyDiffContent(SelectedDiff);
+
+                var content = await _gitService.GetCommitFileContentAsync(
+                    _selectedFolderPath,
+                    SelectedCommit,
+                    changedFile,
+                    cancellationTokenSource.Token);
+
+                var bitmap = await LoadImagePreviewAsync(content, cancellationTokenSource.Token);
+                if (bitmap is not null)
+                {
+                    if (cancellationTokenSource.IsCancellationRequested)
+                    {
+                        bitmap.Dispose();
+                        return;
+                    }
+
+                    SetSelectedImagePreview(bitmap);
+                    SelectedDiff = $"Previewing {Path.GetFileName(changedFile.DiffPath)} from {SelectedCommit.ShortHash}";
+                    return;
+                }
+            }
+
             if (IsShowingCommitHistory && SelectedCommit is not null)
             {
                 SelectedDiffHeader = $"{SelectedCommit.ShortHash} • {changedFile.DiffPath}";
@@ -954,9 +1048,98 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void ClearDiffPreview(string header, string content)
     {
+        ClearImagePreview();
         SelectedDiffHeader = header;
         SelectedDiff = content;
         ApplyDiffContent(content);
+    }
+
+    private bool TryResolvePreviewImagePath(GitChangedFile changedFile, out string imagePath)
+    {
+        imagePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_selectedFolderPath))
+        {
+            return false;
+        }
+
+        var extension = Path.GetExtension(changedFile.DiffPath);
+        if (string.IsNullOrWhiteSpace(extension) || !PreviewableImageExtensions.Contains(extension))
+        {
+            return false;
+        }
+
+        var relativePath = changedFile.DiffPath.Replace('/', Path.DirectorySeparatorChar);
+        var repositoryRoot = Path.GetFullPath(_selectedFolderPath);
+        var fullPath = Path.GetFullPath(Path.Combine(repositoryRoot, relativePath));
+        var rootWithSeparator = repositoryRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? repositoryRoot
+            : repositoryRoot + Path.DirectorySeparatorChar;
+
+        if (!fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(fullPath, repositoryRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!File.Exists(fullPath))
+        {
+            return false;
+        }
+
+        imagePath = fullPath;
+        return true;
+    }
+
+    private bool IsPreviewableImageFile(GitChangedFile changedFile)
+    {
+        var extension = Path.GetExtension(changedFile.DiffPath);
+        return !string.IsNullOrWhiteSpace(extension) && PreviewableImageExtensions.Contains(extension);
+    }
+
+    private static Task<Bitmap> LoadImagePreviewAsync(string imagePath, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var stream = File.OpenRead(imagePath);
+            return new Bitmap(stream);
+        }, cancellationToken);
+    }
+
+    private static Task<Bitmap?> LoadImagePreviewAsync(byte[]? content, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (content is null || content.Length == 0)
+            {
+                return null;
+            }
+
+            using var stream = new MemoryStream(content, writable: false);
+            return new Bitmap(stream);
+        }, cancellationToken);
+    }
+
+    private void SetSelectedImagePreview(Bitmap? bitmap)
+    {
+        var previous = SelectedImagePreview;
+        SelectedImagePreview = bitmap;
+        previous?.Dispose();
+        OnPropertyChanged(nameof(HasImagePreview));
+        OnPropertyChanged(nameof(ShowsTextDiff));
+        OnPropertyChanged(nameof(DetailPaneMetaText));
+    }
+
+    private void ClearImagePreview()
+    {
+        if (SelectedImagePreview is null)
+        {
+            return;
+        }
+
+        SetSelectedImagePreview(null);
     }
 
     private void ApplyDiffContent(string diffText)

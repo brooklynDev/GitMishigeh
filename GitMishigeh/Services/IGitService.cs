@@ -40,4 +40,6 @@ public interface IGitService
     Task<IReadOnlyList<GitChangedFile>> GetCommitFilesAsync(string repositoryPath, GitCommitItem commit, CancellationToken cancellationToken = default);
 
     Task<string> GetCommitFileDiffAsync(string repositoryPath, GitCommitItem commit, GitChangedFile changedFile, CancellationToken cancellationToken = default);
+
+    Task<byte[]?> GetCommitFileContentAsync(string repositoryPath, GitCommitItem commit, GitChangedFile changedFile, CancellationToken cancellationToken = default);
 }

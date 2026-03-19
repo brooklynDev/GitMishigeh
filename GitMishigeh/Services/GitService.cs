@@ -247,6 +247,35 @@ public sealed class GitService : IGitService
             : result.StandardOutput;
     }
 
+    public async Task<byte[]?> GetCommitFileContentAsync(
+        string repositoryPath,
+        GitCommitItem commit,
+        GitChangedFile changedFile,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+
+        if (string.Equals(changedFile.IndexStatus, "D", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await RunGitBinaryCommandAsync(
+                repositoryPath,
+                cancellationToken,
+                "show",
+                $"{commit.Hash}:{changedFile.DiffPath}");
+        }
+        catch (GitServiceException exception) when (
+            exception.Message.Contains("does not exist in", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("exists on disk, but not in", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+    }
+
     private async Task EnsureGitRepositoryAsync(string repositoryPath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath) || !Directory.Exists(repositoryPath))
@@ -410,6 +439,55 @@ public sealed class GitService : IGitService
         }
 
         return new GitCommandResult(standardOutput.Trim(), standardError.Trim());
+    }
+
+    private async Task<byte[]> RunGitBinaryCommandAsync(
+        string repositoryPath,
+        CancellationToken cancellationToken,
+        params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "git",
+            WorkingDirectory = repositoryPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = new Process { StartInfo = startInfo };
+
+        try
+        {
+            if (!process.Start())
+            {
+                throw new GitServiceException("Failed to start the git process.");
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            throw new GitServiceException("Git CLI could not be started. Make sure Git is installed and available on PATH.");
+        }
+
+        using var outputStream = new MemoryStream();
+        var copyOutputTask = process.StandardOutput.BaseStream.CopyToAsync(outputStream, cancellationToken);
+        var standardErrorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
+        await Task.WhenAll(copyOutputTask, process.WaitForExitAsync(cancellationToken));
+        var standardError = await standardErrorTask;
+
+        if (process.ExitCode != 0)
+        {
+            throw new GitServiceException(standardError.Trim());
+        }
+
+        return outputStream.ToArray();
     }
 
     private static void DeleteUntrackedPath(string repositoryPath, string diffPath)

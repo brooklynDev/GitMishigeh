@@ -619,12 +619,34 @@
                                        Text="{Binding SelectedDiffHeader}"
                                        TextTrimming="CharacterEllipsis" />
                             <TextBlock Classes="muted"
-                                       Text="{Binding OutputMessage}"
+                                       Text="{Binding DetailPaneMetaText}"
                                        TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Border>
 
+                    <Grid MinHeight="0"
+                          IsVisible="{Binding HasImagePreview}"
+                          Background="#0D141E"
+                          Margin="20">
+                        <Border Background="#0A1018"
+                                BorderBrush="#23304A"
+                                BorderThickness="1"
+                                CornerRadius="16"
+                                Padding="18"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch">
+                            <Viewbox Stretch="Uniform"
+                                     StretchDirection="Both"
+                                     HorizontalAlignment="Stretch"
+                                     VerticalAlignment="Stretch">
+                                <Image Source="{Binding SelectedImagePreview}"
+                                       Stretch="Uniform" />
+                            </Viewbox>
+                        </Border>
+                    </Grid>
+
                     <ScrollViewer MinHeight="0"
+                                  IsVisible="{Binding ShowsTextDiff}"
                                   Background="#0D141E"
                                   HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Visible">
