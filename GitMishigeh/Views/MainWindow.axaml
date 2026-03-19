@@ -67,18 +67,24 @@
 
                     <StackPanel Spacing="8">
                         <TextBlock Classes="label" Text="Sections" />
-                        <Border Background="#111C30"
-                                BorderBrush="#23304A"
-                                BorderThickness="1"
-                                CornerRadius="12"
-                                Padding="12,10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Classes="nav-title" Text="Working Copy" />
-                                <Border Grid.Column="1" Classes="badge" VerticalAlignment="Center">
-                                    <TextBlock Classes="badge-text" Text="{Binding ChangedFiles.Count}" />
-                                </Border>
-                            </Grid>
-                        </Border>
+                        <Button Command="{Binding ShowWorkingTreeCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="0"
+                                HorizontalContentAlignment="Stretch">
+                            <Border Background="#111C30"
+                                    BorderBrush="#23304A"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Classes="nav-title" Text="Working Copy" />
+                                    <Border Grid.Column="1" Classes="badge" VerticalAlignment="Center">
+                                        <TextBlock Classes="badge-text" Text="{Binding ChangedFiles.Count}" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Button>
                     </StackPanel>
 
                     <StackPanel Spacing="8">
@@ -125,20 +131,34 @@
                     </StackPanel>
 
                     <StackPanel Spacing="8">
-                        <TextBlock Classes="label" Text="Recent Commits" />
+                        <TextBlock Classes="label" Text="History" />
                         <ScrollViewer MaxHeight="360" Classes="list-scroll">
-                            <ListBox ItemsSource="{Binding RecentCommits}">
+                            <ListBox ItemsSource="{Binding RecentCommits}"
+                                     SelectedItem="{Binding SelectedCommit, Mode=TwoWay}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="model:GitCommitItem">
                                         <Border Classes="list-item">
-                                            <StackPanel Spacing="4">
-                                                <TextBlock Classes="badge-text"
-                                                           Text="{Binding ShortHash}" />
-                                                <TextBlock Classes="list-title"
-                                                           Text="{Binding Message}"
-                                                           TextWrapping="Wrap"
-                                                           FontSize="13" />
-                                            </StackPanel>
+                                            <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
+                                                <Grid Width="24">
+                                                    <Border Classes="commit-graph-line"
+                                                            IsVisible="{Binding ShowConnector}" />
+                                                    <Border Classes="commit-graph-node" />
+                                                </Grid>
+
+                                                <StackPanel Grid.Column="1" Spacing="4">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Classes="badge-text"
+                                                                   Text="{Binding ShortHash}" />
+                                                        <TextBlock Classes="muted commit-refs"
+                                                                   IsVisible="{Binding HasRefs}"
+                                                                   Text="{Binding Refs}" />
+                                                    </StackPanel>
+                                                    <TextBlock Classes="list-title"
+                                                               Text="{Binding Message}"
+                                                               TextWrapping="Wrap"
+                                                               FontSize="13" />
+                                                </StackPanel>
+                                            </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -192,20 +212,21 @@
                             BorderThickness="0,0,0,1"
                             Padding="16,12">
                         <Grid ColumnDefinitions="72,*">
-                            <TextBlock Classes="label" Text="Status" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="1" Classes="label" Text="Filename" VerticalAlignment="Center" />
+                            <TextBlock Classes="label" Text="{Binding FilePaneStatusHeader}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="label" Text="{Binding FilePaneHeaderText}" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
 
                     <ScrollViewer Grid.Row="1" Classes="list-scroll">
-                        <ListBox ItemsSource="{Binding ChangedFiles}"
-                                 SelectedItem="{Binding SelectedChangedFile, Mode=TwoWay}">
+                        <ListBox ItemsSource="{Binding VisibleFiles}"
+                                 SelectedItem="{Binding SelectedFileEntry, Mode=TwoWay}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="model:GitChangedFile">
                                     <Border Classes="list-item">
                                         <Grid ColumnDefinitions="72,*" ColumnSpacing="10">
                                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                 <CheckBox Classes="file-selector"
+                                                          IsVisible="{Binding CanToggleStage}"
                                                           IsChecked="{Binding IsStaged, Mode=OneWay}"
                                                           Command="{Binding #RootWindow.DataContext.ToggleStageFileCommand}"
                                                           CommandParameter="{Binding .}" />

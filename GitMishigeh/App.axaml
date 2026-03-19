@@ -138,6 +138,28 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="#93C5FD" />
         </Style>
+        <Style Selector="Border.commit-graph-line">
+            <Setter Property="Width" Value="2" />
+            <Setter Property="Background" Value="#334155" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="Margin" Value="0,10,0,0" />
+        </Style>
+        <Style Selector="Border.commit-graph-node">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Background" Value="#60A5FA" />
+            <Setter Property="BorderBrush" Value="#DBEAFE" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="TextBlock.commit-refs">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
         <Style Selector="Border.diff-section">
             <Setter Property="Background" Value="#0F172A" />
             <Setter Property="BorderBrush" Value="#1E293B" />

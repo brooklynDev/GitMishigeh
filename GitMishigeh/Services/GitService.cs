@@ -103,6 +103,29 @@ public sealed class GitService : IGitService
             : result.StandardOutput;
     }
 
+    public async Task<IReadOnlyList<GitChangedFile>> GetCommitFilesAsync(
+        string repositoryPath,
+        GitCommitItem commit,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "show", "--format=", "--name-status", commit.Hash);
+        return ParseCommitFiles(result.StandardOutput);
+    }
+
+    public async Task<string> GetCommitFileDiffAsync(
+        string repositoryPath,
+        GitCommitItem commit,
+        GitChangedFile changedFile,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "show", "--format=", commit.Hash, "--", changedFile.DiffPath);
+        return string.IsNullOrWhiteSpace(result.StandardOutput)
+            ? "No textual diff is available for this file in the selected commit."
+            : result.StandardOutput;
+    }
+
     private async Task EnsureGitRepositoryAsync(string repositoryPath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(repositoryPath) || !Directory.Exists(repositoryPath))
@@ -128,7 +151,14 @@ public sealed class GitService : IGitService
     {
         try
         {
-            var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "log", "--oneline", "-n", "20");
+            var result = await RunGitCommandAsync(
+                repositoryPath,
+                cancellationToken,
+                "log",
+                "--decorate=short",
+                "--pretty=format:%H%x1f%h%x1f%s%x1f%D",
+                "-n",
+                "30");
             return ParseCommitLog(result.StandardOutput);
         }
         catch (GitServiceException exception) when (exception.Message.Contains("does not have any commits yet", StringComparison.OrdinalIgnoreCase))
@@ -246,16 +276,54 @@ public sealed class GitService : IGitService
 
     private static IReadOnlyList<GitCommitItem> ParseCommitLog(string logOutput)
     {
-        return logOutput
-            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(line =>
+        var lines = logOutput
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+        return lines
+            .Select((line, index) =>
             {
-                var separatorIndex = line.IndexOf(' ');
-                return separatorIndex > 0
-                    ? new GitCommitItem(line[..separatorIndex], line[(separatorIndex + 1)..])
-                    : new GitCommitItem(line, string.Empty);
+                var parts = line.Split('\x1f');
+                var hash = parts.Length > 0 ? parts[0] : string.Empty;
+                var shortHash = parts.Length > 1 ? parts[1] : hash;
+                var message = parts.Length > 2 ? parts[2] : string.Empty;
+                var refs = parts.Length > 3 ? parts[3] : string.Empty;
+                return new GitCommitItem(hash, shortHash, message, refs, index < lines.Length - 1);
             })
             .ToList();
+    }
+
+    private static IReadOnlyList<GitChangedFile> ParseCommitFiles(string output)
+    {
+        var files = new List<GitChangedFile>();
+        var lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            var parts = line.Split('\t', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2)
+            {
+                continue;
+            }
+
+            var statusCode = parts[0];
+            var path = parts.Length >= 3 ? $"{parts[1]} -> {parts[2]}" : parts[1];
+            files.Add(new GitChangedFile(statusCode[..1], " ", path, BuildCommitFileStatusLabel(statusCode), canToggleStage: false));
+        }
+
+        return files;
+    }
+
+    private static string BuildCommitFileStatusLabel(string statusCode)
+    {
+        return statusCode[0] switch
+        {
+            'A' => "Added in commit",
+            'M' => "Modified in commit",
+            'D' => "Deleted in commit",
+            'R' => "Renamed in commit",
+            'C' => "Copied in commit",
+            _ => "Changed in commit"
+        };
     }
 
     private static string ParseCurrentBranch(string statusOutput)

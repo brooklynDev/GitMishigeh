@@ -26,24 +26,32 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _repositoryFingerprint = string.Empty;
     private int _aheadCount;
     private int _behindCount;
+    private string? _selectedWorkingTreePath;
+    private string? _selectedCommitFilePath;
+    private bool _suppressCommitLoad;
 
     public MainWindowViewModel() : this(new GitService(), new FolderPickerService(), new RecentRepositoryStore())
     {
     }
 
-    public MainWindowViewModel(IGitService gitService, IFolderPickerService folderPickerService, IRecentRepositoryStore recentRepositoryStore)
+    public MainWindowViewModel(
+        IGitService gitService,
+        IFolderPickerService folderPickerService,
+        IRecentRepositoryStore recentRepositoryStore)
     {
         _gitService = gitService;
         _folderPickerService = folderPickerService;
         _recentRepositoryStore = recentRepositoryStore;
 
         ChangedFiles = new ObservableCollection<GitChangedFile>();
+        CommitFiles = new ObservableCollection<GitChangedFile>();
         RecentCommits = new ObservableCollection<GitCommitItem>();
         RecentRepositories = new ObservableCollection<RecentRepository>();
         DiffSections = new ObservableCollection<GitDiffSection>();
 
         OpenRepoCommand = new AsyncRelayCommand(OpenRepoAsync, CanOpenRepo);
         OpenRecentRepositoryCommand = new AsyncRelayCommand<RecentRepository?>(OpenRecentRepositoryAsync, CanOpenRecentRepository);
+        ShowWorkingTreeCommand = new RelayCommand(ShowWorkingTree);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
         PullCommand = new AsyncRelayCommand(PullAsync, CanSyncWithRemote);
         PushCommand = new AsyncRelayCommand(PushAsync, CanSyncWithRemote);
@@ -64,14 +72,17 @@ public partial class MainWindowViewModel : ViewModelBase
         CurrentBranch = "No branch";
         StatusSummary = "Repository details will appear here.";
         SelectedDiffHeader = "Diff Preview";
-        SelectedDiff = "Select a changed file to inspect its diff.";
+        SelectedDiff = "Select a changed file or commit to inspect its diff.";
         ApplyDiffContent(SelectedDiff);
 
         ChangedFiles.CollectionChanged += (_, _) => NotifyCommandStateChanged();
+        CommitFiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasVisibleFiles));
         _ = LoadRecentRepositoriesAsync();
     }
 
     public ObservableCollection<GitChangedFile> ChangedFiles { get; }
+
+    public ObservableCollection<GitChangedFile> CommitFiles { get; }
 
     public ObservableCollection<GitCommitItem> RecentCommits { get; }
 
@@ -79,9 +90,15 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<GitDiffSection> DiffSections { get; }
 
+    public ReadOnlyObservableCollection<GitChangedFile>? _visibleFilesReadOnly;
+
+    public IEnumerable<GitChangedFile> VisibleFiles => IsShowingCommitHistory ? CommitFiles : ChangedFiles;
+
     public IAsyncRelayCommand OpenRepoCommand { get; }
 
     public IAsyncRelayCommand<RecentRepository?> OpenRecentRepositoryCommand { get; }
+
+    public IRelayCommand ShowWorkingTreeCommand { get; }
 
     public IAsyncRelayCommand RefreshCommand { get; }
 
@@ -116,7 +133,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool isBusy;
 
     [ObservableProperty]
-    private GitChangedFile? selectedChangedFile;
+    private GitCommitItem? selectedCommit;
+
+    [ObservableProperty]
+    private GitChangedFile? selectedFileEntry;
 
     [ObservableProperty]
     private string selectedDiffHeader = string.Empty;
@@ -132,7 +152,20 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasDiffSections => DiffSections.Count > 0;
 
+    public bool IsShowingCommitHistory => SelectedCommit is not null;
+
+    public bool HasVisibleFiles => IsShowingCommitHistory ? CommitFiles.Count > 0 : ChangedFiles.Count > 0;
+
     public string PushButtonText => _aheadCount > 0 ? $"Push ({_aheadCount})" : "Push";
+
+    public string FilePaneHeaderText => IsShowingCommitHistory ? "Files Changed" : "Working Copy";
+
+    public string FilePaneStatusHeader => IsShowingCommitHistory ? "Change" : "Status";
+
+    public string FilePaneSubtitle =>
+        IsShowingCommitHistory && SelectedCommit is not null
+            ? $"{SelectedCommit.ShortHash} {SelectedCommit.Message}"
+            : StatusSummary;
 
     private bool CanOpenRepo() => !IsBusy;
 
@@ -146,7 +179,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanUnstageAll() => !IsBusy && _hasValidRepository && ChangedFiles.Count > 0;
 
-    private bool CanToggleStageFile(GitChangedFile? changedFile) => !IsBusy && _hasValidRepository && changedFile is not null;
+    private bool CanToggleStageFile(GitChangedFile? changedFile) =>
+        !IsBusy && _hasValidRepository && changedFile is not null && changedFile.CanToggleStage;
 
     private bool CanCommit() =>
         !IsBusy &&
@@ -174,6 +208,16 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         await OpenRepositoryAsync(repository.Path);
+    }
+
+    private void ShowWorkingTree()
+    {
+        if (SelectedCommit is null)
+        {
+            return;
+        }
+
+        SelectedCommit = null;
     }
 
     private Task RefreshAsync() => RunBusyAsync(async () =>
@@ -222,7 +266,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private Task ToggleStageFileAsync(GitChangedFile? changedFile)
     {
-        if (changedFile is null)
+        if (changedFile is null || !changedFile.CanToggleStage)
         {
             return Task.CompletedTask;
         }
@@ -275,11 +319,47 @@ public partial class MainWindowViewModel : ViewModelBase
         _behindCount = repositoryState.BehindCount;
         SyncCollection(ChangedFiles, repositoryState.ChangedFiles);
         SyncCollection(RecentCommits, repositoryState.RecentCommits);
-        UpdateSelectedFileAfterRefresh();
+
+        UpdateSelectedCommitAfterRefresh();
+        if (!IsShowingCommitHistory)
+        {
+            UpdateSelectedFileForCurrentMode();
+        }
+
         OnPropertyChanged(nameof(HasChangedFiles));
         OnPropertyChanged(nameof(HasRecentCommits));
         OnPropertyChanged(nameof(PushButtonText));
+        OnPropertyChanged(nameof(FilePaneSubtitle));
+        OnPropertyChanged(nameof(VisibleFiles));
+        OnPropertyChanged(nameof(HasVisibleFiles));
         _repositoryFingerprint = BuildRepositoryFingerprint(repositoryState);
+    }
+
+    private void UpdateSelectedCommitAfterRefresh()
+    {
+        if (SelectedCommit is null)
+        {
+            return;
+        }
+
+        foreach (var commit in RecentCommits)
+        {
+            if (!string.Equals(commit.Hash, SelectedCommit.Hash, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!ReferenceEquals(commit, SelectedCommit))
+            {
+                _suppressCommitLoad = true;
+                SelectedCommit = commit;
+                _suppressCommitLoad = false;
+            }
+
+            return;
+        }
+
+        SelectedCommit = null;
     }
 
     private void ClearRepositoryStateForInvalidRepo(string message)
@@ -290,11 +370,17 @@ public partial class MainWindowViewModel : ViewModelBase
         _aheadCount = 0;
         _behindCount = 0;
         SyncCollection(ChangedFiles, Array.Empty<GitChangedFile>());
+        SyncCollection(CommitFiles, Array.Empty<GitChangedFile>());
         SyncCollection(RecentCommits, Array.Empty<GitCommitItem>());
+        SelectedCommit = null;
+        SelectedFileEntry = null;
         ClearDiffPreview("Diff Preview", "Select a valid Git repository to inspect file diffs.");
         OnPropertyChanged(nameof(HasChangedFiles));
         OnPropertyChanged(nameof(HasRecentCommits));
         OnPropertyChanged(nameof(PushButtonText));
+        OnPropertyChanged(nameof(FilePaneSubtitle));
+        OnPropertyChanged(nameof(VisibleFiles));
+        OnPropertyChanged(nameof(HasVisibleFiles));
         OutputMessage = message;
         _repositoryFingerprint = string.Empty;
     }
@@ -323,6 +409,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _selectedFolderPath = repositoryPath;
         RepositoryPath = repositoryPath;
         _repositoryFingerprint = string.Empty;
+        SelectedCommit = null;
         await RefreshAsync();
 
         if (_hasValidRepository)
@@ -378,33 +465,107 @@ public partial class MainWindowViewModel : ViewModelBase
         NotifyCommandStateChanged();
     }
 
-    partial void OnSelectedChangedFileChanged(GitChangedFile? value)
+    partial void OnSelectedCommitChanged(GitCommitItem? value)
     {
-        _ = LoadDiffAsync(value);
-    }
+        OnPropertyChanged(nameof(IsShowingCommitHistory));
+        OnPropertyChanged(nameof(VisibleFiles));
+        OnPropertyChanged(nameof(HasVisibleFiles));
+        OnPropertyChanged(nameof(FilePaneHeaderText));
+        OnPropertyChanged(nameof(FilePaneStatusHeader));
+        OnPropertyChanged(nameof(FilePaneSubtitle));
 
-    private void UpdateSelectedFileAfterRefresh()
-    {
-        if (ChangedFiles.Count == 0)
+        if (_suppressCommitLoad)
         {
-            SelectedChangedFile = null;
-            ClearDiffPreview("Diff Preview", "Working tree is clean.");
             return;
         }
 
-        if (SelectedChangedFile is not null)
+        _ = LoadCommitFilesAsync(value);
+    }
+
+    partial void OnSelectedFileEntryChanged(GitChangedFile? value)
+    {
+        if (IsShowingCommitHistory)
         {
-            foreach (var changedFile in ChangedFiles)
+            _selectedCommitFilePath = value?.Path;
+        }
+        else
+        {
+            _selectedWorkingTreePath = value?.Path;
+        }
+
+        _ = LoadDiffAsync(value);
+    }
+
+    private async Task LoadCommitFilesAsync(GitCommitItem? commit)
+    {
+        SyncCollection(CommitFiles, Array.Empty<GitChangedFile>());
+        OnPropertyChanged(nameof(VisibleFiles));
+        OnPropertyChanged(nameof(HasVisibleFiles));
+
+        if (commit is null)
+        {
+            UpdateSelectedFileForCurrentMode();
+            return;
+        }
+
+        if (!_hasValidRepository || string.IsNullOrWhiteSpace(_selectedFolderPath))
+        {
+            return;
+        }
+
+        SelectedDiffHeader = commit.ShortHash;
+        SelectedDiff = "Loading commit files...";
+        ApplyDiffContent(SelectedDiff);
+
+        try
+        {
+            var files = await _gitService.GetCommitFilesAsync(_selectedFolderPath, commit);
+            SyncCollection(CommitFiles, files);
+            OnPropertyChanged(nameof(VisibleFiles));
+            OnPropertyChanged(nameof(HasVisibleFiles));
+            UpdateSelectedFileForCurrentMode();
+        }
+        catch (GitServiceException exception)
+        {
+            SelectedDiffHeader = commit.ShortHash;
+            SelectedDiff = exception.Message;
+            ApplyDiffContent(SelectedDiff);
+        }
+    }
+
+    private void UpdateSelectedFileForCurrentMode()
+    {
+        var files = IsShowingCommitHistory ? CommitFiles : ChangedFiles;
+        var rememberedPath = IsShowingCommitHistory ? _selectedCommitFilePath : _selectedWorkingTreePath;
+
+        if (files.Count == 0)
+        {
+            SelectedFileEntry = null;
+            if (IsShowingCommitHistory && SelectedCommit is not null)
             {
-                if (string.Equals(changedFile.Path, SelectedChangedFile.Path, StringComparison.Ordinal))
+                ClearDiffPreview(SelectedCommit.ShortHash, "This commit does not include any file changes.");
+            }
+            else
+            {
+                ClearDiffPreview("Diff Preview", "Working tree is clean.");
+            }
+
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(rememberedPath))
+        {
+            foreach (var file in files)
+            {
+                if (string.Equals(file.Path, rememberedPath, StringComparison.Ordinal))
                 {
-                    SelectedChangedFile = changedFile;
+                    SelectedFileEntry = file;
                     return;
                 }
             }
         }
 
-        SelectedChangedFile = ChangedFiles[0];
+        SelectedFileEntry = files[0];
     }
 
     private async void AutoRefreshTimerOnTick(object? sender, EventArgs e)
@@ -446,20 +607,34 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (!_hasValidRepository || string.IsNullOrWhiteSpace(_selectedFolderPath) || changedFile is null)
         {
-            ClearDiffPreview("Diff Preview", "Select a changed file to inspect its diff.");
+            ClearDiffPreview("Diff Preview", "Select a changed file or commit to inspect its diff.");
             return;
         }
-
-        SelectedDiffHeader = changedFile.DiffPath;
-        SelectedDiff = "Loading diff...";
-        ApplyDiffContent(SelectedDiff);
 
         var cancellationTokenSource = new CancellationTokenSource();
         _diffCancellationTokenSource = cancellationTokenSource;
 
         try
         {
-            SelectedDiff = await _gitService.GetDiffAsync(_selectedFolderPath, changedFile, cancellationTokenSource.Token);
+            if (IsShowingCommitHistory && SelectedCommit is not null)
+            {
+                SelectedDiffHeader = $"{SelectedCommit.ShortHash} • {changedFile.DiffPath}";
+                SelectedDiff = "Loading commit diff...";
+                ApplyDiffContent(SelectedDiff);
+                SelectedDiff = await _gitService.GetCommitFileDiffAsync(
+                    _selectedFolderPath,
+                    SelectedCommit,
+                    changedFile,
+                    cancellationTokenSource.Token);
+            }
+            else
+            {
+                SelectedDiffHeader = changedFile.DiffPath;
+                SelectedDiff = "Loading diff...";
+                ApplyDiffContent(SelectedDiff);
+                SelectedDiff = await _gitService.GetDiffAsync(_selectedFolderPath, changedFile, cancellationTokenSource.Token);
+            }
+
             ApplyDiffContent(SelectedDiff);
         }
         catch (OperationCanceledException)
@@ -747,9 +922,11 @@ public partial class MainWindowViewModel : ViewModelBase
         foreach (var commit in repositoryState.RecentCommits)
         {
             builder
-                .Append(commit.ShortHash)
+                .Append(commit.Hash)
                 .Append(':')
                 .Append(commit.Message)
+                .Append(':')
+                .Append(commit.Refs)
                 .Append('|');
         }
 

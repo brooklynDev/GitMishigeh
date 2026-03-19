@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using GitMishigeh.Models;
@@ -23,4 +24,8 @@ public interface IGitService
     Task<string> CommitAsync(string repositoryPath, string commitMessage, CancellationToken cancellationToken = default);
 
     Task<string> GetDiffAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<GitChangedFile>> GetCommitFilesAsync(string repositoryPath, GitCommitItem commit, CancellationToken cancellationToken = default);
+
+    Task<string> GetCommitFileDiffAsync(string repositoryPath, GitCommitItem commit, GitChangedFile changedFile, CancellationToken cancellationToken = default);
 }

@@ -4,11 +4,18 @@ namespace GitMishigeh.Models;
 
 public partial class GitChangedFile : ObservableObject
 {
-    public GitChangedFile(string indexStatus, string workingTreeStatus, string path)
+    public GitChangedFile(
+        string indexStatus,
+        string workingTreeStatus,
+        string path,
+        string? statusLabelOverride = null,
+        bool canToggleStage = true)
     {
         IndexStatus = indexStatus;
         WorkingTreeStatus = workingTreeStatus;
         Path = path;
+        StatusLabelOverride = statusLabelOverride;
+        CanToggleStage = canToggleStage;
     }
 
     public string IndexStatus { get; }
@@ -31,8 +38,13 @@ public partial class GitChangedFile : ObservableObject
     public bool IsModified => WorkingTreeStatus != " ";
 
     public string StatusLabel =>
-        IsUntracked ? "Untracked" :
+        StatusLabelOverride ??
+        (IsUntracked ? "Untracked" :
         IsStaged && IsModified ? "Staged + Modified" :
         IsStaged ? "Staged" :
-        "Modified";
+        "Modified");
+
+    public string? StatusLabelOverride { get; }
+
+    public bool CanToggleStage { get; }
 }
