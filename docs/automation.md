@@ -153,6 +153,16 @@ Payload:
 { "command": "set_commit_message", "message": "My commit message" }
 ```
 
+### `set_pane_widths`
+
+Sets the left and middle pane widths in device-independent pixels. The right pane uses the remaining width.
+
+Payload:
+
+```json
+{ "command": "set_pane_widths", "left": 260, "middle": 460 }
+```
+
 ### `stage_all`
 
 Stages all visible working copy changes.
@@ -218,6 +228,8 @@ Most commands return:
     "isHistoryMode": false,
     "selectedFile": null,
     "selectedCommit": null,
+    "navigationPaneWidth": 220,
+    "filePaneWidth": 540,
     "visibleFiles": [],
     "recentCommits": [],
     "recentRepositories": [],

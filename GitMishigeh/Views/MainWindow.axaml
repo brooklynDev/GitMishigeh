@@ -229,7 +229,14 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Row="1" ColumnDefinitions="220,540,*" Margin="0">
+        <Grid Grid.Row="1" Margin="0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{Binding NavigationPaneWidth}" MinWidth="180" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="{Binding FilePaneWidth}" MinWidth="320" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="*" MinWidth="360" />
+        </Grid.ColumnDefinitions>
         <Border Grid.Column="0"
                 Classes="sidebar-panel">
             <Grid RowDefinitions="Auto,*,Auto">
@@ -434,7 +441,17 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="16,14,12,14" RowSpacing="14">
+        <GridSplitter Grid.Column="1"
+                      Width="6"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      ShowsPreview="True"
+                      Cursor="SizeWestEast"
+                      Background="Transparent" />
+
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" Margin="16,14,12,14" RowSpacing="14">
             <Border Classes="card toolbar-shell">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <TextBox Watermark="Commit Subject"
@@ -525,7 +542,17 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Column="2" Margin="12,0,0,0" MinHeight="0">
+        <GridSplitter Grid.Column="3"
+                      Width="6"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      ShowsPreview="True"
+                      Cursor="SizeWestEast"
+                      Background="Transparent" />
+
+        <Grid Grid.Column="4" Margin="12,0,0,0" MinHeight="0">
             <Border Classes="card"
                     CornerRadius="0"
                     BorderThickness="1,0,0,0"

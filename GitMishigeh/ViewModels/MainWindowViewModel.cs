@@ -86,6 +86,8 @@ public partial class MainWindowViewModel : ViewModelBase
         RepositoryPath = "No repository selected";
         CurrentBranch = "No branch";
         StatusSummary = "Repository details will appear here.";
+        NavigationPaneWidth = 220;
+        FilePaneWidth = 540;
         SelectedDiffHeader = "Diff Preview";
         SelectedDiff = "Select a changed file or commit to inspect its diff.";
         ApplyDiffContent(SelectedDiff);
@@ -193,6 +195,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string selectedDiff = string.Empty;
+
+    [ObservableProperty]
+    private double navigationPaneWidth;
+
+    [ObservableProperty]
+    private double filePaneWidth;
 
     public bool HasChangedFiles => ChangedFiles.Count > 0;
 
@@ -1341,5 +1349,18 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return false;
+    }
+
+    public void AutomationSetPaneWidths(double? leftPaneWidth, double? middlePaneWidth)
+    {
+        if (leftPaneWidth is { } left)
+        {
+            NavigationPaneWidth = Math.Max(180, left);
+        }
+
+        if (middlePaneWidth is { } middle)
+        {
+            FilePaneWidth = Math.Max(320, middle);
+        }
     }
 }

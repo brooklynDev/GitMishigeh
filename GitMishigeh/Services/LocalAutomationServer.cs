@@ -190,6 +190,13 @@ public sealed class LocalAutomationServer : IAsyncDisposable
                 await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSetCommitMessage(message));
                 return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             }
+            case "set_pane_widths":
+            {
+                var leftPaneWidth = TryGetDouble(root, "left");
+                var middlePaneWidth = TryGetDouble(root, "middle");
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSetPaneWidths(leftPaneWidth, middlePaneWidth));
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            }
             case "stage_all":
                 await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationStageAllAsync());
                 return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
@@ -261,6 +268,8 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             isHistoryMode = _viewModel.IsShowingCommitHistory,
             selectedFile = _viewModel.SelectedFileEntry?.Path,
             selectedCommit = _viewModel.SelectedCommit?.ShortHash,
+            navigationPaneWidth = _viewModel.NavigationPaneWidth,
+            filePaneWidth = _viewModel.FilePaneWidth,
             visibleFiles = files,
             recentCommits = commits,
             recentRepositories = recentRepositories,
@@ -401,6 +410,18 @@ public sealed class LocalAutomationServer : IAsyncDisposable
         }
 
         return value;
+    }
+
+    private static double? TryGetDouble(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)
+            ? value
+            : null;
     }
 
     private static string SanitizeFileName(string name)
