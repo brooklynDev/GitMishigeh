@@ -239,7 +239,7 @@ public sealed class GitService : IGitService
                 cancellationToken,
                 "log",
                 "--decorate=short",
-                "--pretty=format:%H%x1f%h%x1f%s%x1f%D",
+                "--pretty=format:%H%x1f%h%x1f%an%x1f%s%x1f%D",
                 "-n",
                 "30");
             return ParseCommitLog(result.StandardOutput);
@@ -413,9 +413,10 @@ public sealed class GitService : IGitService
                 var parts = line.Split('\x1f');
                 var hash = parts.Length > 0 ? parts[0] : string.Empty;
                 var shortHash = parts.Length > 1 ? parts[1] : hash;
-                var message = parts.Length > 2 ? parts[2] : string.Empty;
-                var refs = parts.Length > 3 ? parts[3] : string.Empty;
-                return new GitCommitItem(hash, shortHash, message, refs, index < lines.Length - 1);
+                var authorName = parts.Length > 2 ? parts[2] : string.Empty;
+                var message = parts.Length > 3 ? parts[3] : string.Empty;
+                var refs = parts.Length > 4 ? parts[4] : string.Empty;
+                return new GitCommitItem(hash, shortHash, authorName, message, refs, index < lines.Length - 1);
             })
             .ToList();
     }

@@ -113,6 +113,16 @@ Payload:
 { "command": "show_history" }
 ```
 
+### `select_recent_repository`
+
+Selects a repository from the top-left recent repository picker by display name or full path.
+
+Payload:
+
+```json
+{ "command": "select_recent_repository", "value": "GitMishigeh" }
+```
+
 ### `select_changed_file`
 
 Selects a visible changed file by path and loads its diff.
@@ -141,6 +151,36 @@ Payload:
 
 ```json
 { "command": "set_commit_message", "message": "My commit message" }
+```
+
+### `stage_all`
+
+Stages all visible working copy changes.
+
+Payload:
+
+```json
+{ "command": "stage_all" }
+```
+
+### `commit`
+
+Runs the commit action using the current commit message.
+
+Payload:
+
+```json
+{ "command": "commit" }
+```
+
+### `push`
+
+Pushes the current branch using the same action as the UI push button.
+
+Payload:
+
+```json
+{ "command": "push" }
 ```
 
 ### `capture_screenshot`
@@ -180,6 +220,7 @@ Most commands return:
     "selectedCommit": null,
     "visibleFiles": [],
     "recentCommits": [],
+    "recentRepositories": [],
     "diffSectionCount": 0
   }
 }

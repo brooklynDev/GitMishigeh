@@ -2,10 +2,11 @@ namespace GitMishigeh.Models;
 
 public sealed class GitCommitItem
 {
-    public GitCommitItem(string hash, string shortHash, string message, string refs, bool showConnector)
+    public GitCommitItem(string hash, string shortHash, string authorName, string message, string refs, bool showConnector)
     {
         Hash = hash;
         ShortHash = shortHash;
+        AuthorName = authorName;
         Message = message;
         Refs = refs;
         ShowConnector = showConnector;
@@ -14,6 +15,8 @@ public sealed class GitCommitItem
     public string Hash { get; }
 
     public string ShortHash { get; }
+
+    public string AuthorName { get; }
 
     public string Message { get; }
 

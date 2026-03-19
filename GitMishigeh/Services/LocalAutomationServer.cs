@@ -164,6 +164,12 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             case "show_history":
                 await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationShowHistoryAsync());
                 return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "select_recent_repository":
+            {
+                var value = GetRequiredString(root, "value");
+                var selected = await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSelectRecentRepositoryAsync(value));
+                return new { ok = selected, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            }
             case "select_changed_file":
             {
                 var path = GetRequiredString(root, "path");
@@ -184,6 +190,15 @@ public sealed class LocalAutomationServer : IAsyncDisposable
                 await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSetCommitMessage(message));
                 return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             }
+            case "stage_all":
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationStageAllAsync());
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "commit":
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationCommitAsync());
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "push":
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationPushAsync());
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             case "capture_screenshot":
             {
                 var name = root.TryGetProperty("name", out var nameElement) && nameElement.ValueKind == JsonValueKind.String
@@ -218,7 +233,18 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             commits.Add(new
             {
                 shortHash = commit.ShortHash,
+                authorName = commit.AuthorName,
                 message = commit.Message
+            });
+        }
+
+        var recentRepositories = new List<object>();
+        foreach (var repository in _viewModel.RecentRepositories)
+        {
+            recentRepositories.Add(new
+            {
+                path = repository.Path,
+                displayName = repository.DisplayName
             });
         }
 
@@ -237,6 +263,7 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             selectedCommit = _viewModel.SelectedCommit?.ShortHash,
             visibleFiles = files,
             recentCommits = commits,
+            recentRepositories = recentRepositories,
             diffSectionCount = _viewModel.DiffSections.Count
         };
     }

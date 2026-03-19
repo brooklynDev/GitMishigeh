@@ -356,6 +356,10 @@
                                                                Text="{Binding Message}"
                                                                TextWrapping="Wrap"
                                                                FontSize="12" />
+                                                    <TextBlock Classes="subtle"
+                                                               FontSize="11"
+                                                               Text="{Binding AuthorName}"
+                                                               TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>

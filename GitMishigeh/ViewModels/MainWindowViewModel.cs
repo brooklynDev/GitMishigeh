@@ -1196,6 +1196,8 @@ public partial class MainWindowViewModel : ViewModelBase
             builder
                 .Append(commit.Hash)
                 .Append(':')
+                .Append(commit.AuthorName)
+                .Append(':')
                 .Append(commit.Message)
                 .Append(':')
                 .Append(commit.Refs)
@@ -1275,6 +1277,12 @@ public partial class MainWindowViewModel : ViewModelBase
         CommitMessage = message;
     }
 
+    public Task AutomationStageAllAsync() => StageAllAsync();
+
+    public Task AutomationCommitAsync() => CommitAsync();
+
+    public Task AutomationPushAsync() => PushAsync();
+
     public async Task<bool> AutomationSelectVisibleFileAsync(string path)
     {
         foreach (var file in VisibleFiles)
@@ -1312,6 +1320,23 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             await LoadCommitFilesAsync(commit);
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task<bool> AutomationSelectRecentRepositoryAsync(string value)
+    {
+        foreach (var repository in RecentRepositories)
+        {
+            if (!string.Equals(repository.Path, value, StringComparison.Ordinal) &&
+                !string.Equals(repository.DisplayName, value, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            await OpenRecentRepositoryAsync(repository);
             return true;
         }
 
