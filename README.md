@@ -8,9 +8,19 @@ This project is currently a vibe-coded WIP experiment. It is intentionally light
   <img src="GitMishigeh/Assets/git-mishigeh-256.png" alt="GitMishigeh icon" width="128" height="128" />
 </p>
 
-## Screenshot
+## Screenshots
 
-![GitMishigeh](screenshot.png)
+### Working Copy
+
+![Working copy view](screenshot-working-copy.png)
+
+### History And Diff
+
+![History and diff view](screenshot-history-diff.png)
+
+### Branch Manager
+
+![Branch manager view](screenshot-branch-manager.png)
 
 ## Releases
 
