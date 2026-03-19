@@ -420,13 +420,10 @@
                         BorderBrush="#1F2937"
                         BorderThickness="0,1,0,0"
                         Padding="10">
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button Command="{Binding OpenRepoCommand}" Content="Open Repo" />
-                        <Button Grid.Column="1"
-                                Classes="subtle"
-                                Command="{Binding RefreshCommand}"
-                                Content="Refresh" />
-                    </Grid>
+                    <Button Command="{Binding OpenRepoCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Content="Open Repo" />
                 </Border>
             </Grid>
         </Border>
