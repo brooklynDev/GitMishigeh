@@ -8,6 +8,7 @@ RID="linux-x64"
 APP_DIR_NAME="GitMishigeh-Linux-x64"
 ARCHIVE_NAME="GitMishigeh-Linux-x64.tar.gz"
 APP_EXECUTABLE_NAME="GitMishigeh"
+ICON_SRC="$ROOT_DIR/GitMishigeh/Assets/git-mishigeh-512.png"
 
 mkdir -p "$ARTIFACTS_DIR"
 
@@ -31,6 +32,19 @@ dotnet publish "$APP_PROJECT" \
 
 cp -R "$publish_dir/." "$app_dir/"
 chmod +x "$app_dir/$APP_EXECUTABLE_NAME"
+cp "$ICON_SRC" "$app_dir/git-mishigeh.png"
+
+cat > "$app_dir/GitMishigeh.desktop" <<EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=GitMishigeh
+Comment=Good and crazy Git desktop client
+Exec=./$APP_EXECUTABLE_NAME
+Icon=git-mishigeh
+Terminal=false
+Categories=Development;RevisionControl;
+EOF
 
 (
   cd "$rid_out_dir"

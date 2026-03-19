@@ -4,6 +4,10 @@ Cross-platform desktop Git GUI built with .NET and Avalonia.
 
 This project is currently a vibe-coded WIP experiment. It is intentionally lightweight, still evolving, and very much not pretending to be a finished product yet.
 
+<p align="center">
+  <img src="GitMishigeh/Assets/git-mishigeh-256.png" alt="GitMishigeh icon" width="128" height="128" />
+</p>
+
 ## Screenshot
 
 ![GitMishigeh](screenshot.png)

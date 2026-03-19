@@ -8,7 +8,7 @@
         x:Class="GitMishigeh.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         x:Name="RootWindow"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/git-mishigeh.ico"
         Title="GitMishigeh"
         Width="1440"
         Height="900"

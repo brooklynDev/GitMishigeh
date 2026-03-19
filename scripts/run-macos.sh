@@ -3,14 +3,18 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PROJECT="$ROOT_DIR/GitMishigeh/GitMishigeh.csproj"
-ICON_SRC="$ROOT_DIR/GitMishigeh/Assets/git-mishigeh-1024.png"
-ARTIFACTS_DIR="$ROOT_DIR/artifacts/macos"
+CONFIGURATION="Debug"
+FRAMEWORK="net10.0"
+BUILD_DIR="$ROOT_DIR/GitMishigeh/bin/$CONFIGURATION/$FRAMEWORK"
+APP_BUNDLE_DIR="$ROOT_DIR/artifacts/macos-dev/GitMishigeh.app"
+MACOS_DIR="$APP_BUNDLE_DIR/Contents/MacOS"
+RESOURCES_DIR="$APP_BUNDLE_DIR/Contents/Resources"
+PLIST_PATH="$APP_BUNDLE_DIR/Contents/Info.plist"
 APP_EXECUTABLE_NAME="GitMishigeh"
 APP_DISPLAY_NAME="GitMishigeh"
-BUNDLE_ID="com.internal.gitmishigeh"
-VERSION="0.1.0"
+ICON_SRC="$ROOT_DIR/GitMishigeh/Assets/git-mishigeh-1024.png"
 
-mkdir -p "$ARTIFACTS_DIR"
+mkdir -p "$ROOT_DIR/artifacts/macos-dev"
 
 create_icns() {
   local output_icns="$1"
@@ -30,54 +34,21 @@ create_icns() {
   sips -z 512 512 "$ICON_SRC" --out "$iconset_dir/icon_512x512.png" >/dev/null
   cp "$ICON_SRC" "$iconset_dir/icon_512x512@2x.png"
 
-  iconutil -c icns "$iconset_dir" -o "$output_icns" || {
-    echo "Warning: iconutil failed, falling back to copied icon."
-    cp "$ICON_SRC" "$output_icns"
-  }
-
+  iconutil -c icns "$iconset_dir" -o "$output_icns"
   rm -rf "$tmp_dir"
 }
 
-package_rid() {
-  local rid="$1"
-  local app_bundle_name
-  local zip_name
+echo "Building macOS debug app..."
+dotnet build "$APP_PROJECT" -c "$CONFIGURATION" -p:UsedAvaloniaProducts=
 
-  if [[ "$rid" == "osx-arm64" ]]; then
-    app_bundle_name="GitMishigeh (Apple Silicon).app"
-    zip_name="GitMishigeh-macOS-AppleSilicon.zip"
-  else
-    app_bundle_name="GitMishigeh (Intel).app"
-    zip_name="GitMishigeh-macOS-Intel.zip"
-  fi
+rm -rf "$APP_BUNDLE_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
-  local publish_dir="$ROOT_DIR/GitMishigeh/bin/Release/net10.0/$rid/publish"
-  local rid_out_dir="$ARTIFACTS_DIR/$rid"
-  local app_bundle_path="$rid_out_dir/$app_bundle_name"
-  local macos_dir="$app_bundle_path/Contents/MacOS"
-  local resources_dir="$app_bundle_path/Contents/Resources"
-  local plist_path="$app_bundle_path/Contents/Info.plist"
-  local zip_path="$ARTIFACTS_DIR/$zip_name"
+cp -R "$BUILD_DIR/." "$MACOS_DIR/"
+chmod +x "$MACOS_DIR/$APP_EXECUTABLE_NAME"
+create_icns "$RESOURCES_DIR/app-icon.icns"
 
-  rm -rf "$rid_out_dir" "$zip_path"
-  mkdir -p "$macos_dir" "$resources_dir"
-
-  echo "Publishing $rid..."
-  dotnet publish "$APP_PROJECT" \
-    -c Release \
-    -r "$rid" \
-    --self-contained true \
-    -p:PublishSingleFile=false \
-    -p:UseAppHost=true \
-    -p:PublishTrimmed=false \
-    -p:UsedAvaloniaProducts=
-
-  cp -R "$publish_dir/." "$macos_dir/"
-  chmod +x "$macos_dir/$APP_EXECUTABLE_NAME"
-
-  create_icns "$resources_dir/app-icon.icns"
-
-  cat > "$plist_path" <<EOF
+cat > "$PLIST_PATH" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -87,11 +58,11 @@ package_rid() {
   <key>CFBundleDisplayName</key>
   <string>$APP_DISPLAY_NAME</string>
   <key>CFBundleIdentifier</key>
-  <string>$BUNDLE_ID.$rid</string>
+  <string>com.internal.gitmishigeh.dev</string>
   <key>CFBundleVersion</key>
-  <string>$VERSION</string>
+  <string>0.1.0-dev</string>
   <key>CFBundleShortVersionString</key>
-  <string>$VERSION</string>
+  <string>0.1.0-dev</string>
   <key>CFBundleExecutable</key>
   <string>$APP_EXECUTABLE_NAME</string>
   <key>CFBundlePackageType</key>
@@ -106,9 +77,5 @@ package_rid() {
 </plist>
 EOF
 
-  ditto -c -k --sequesterRsrc --keepParent "$app_bundle_path" "$zip_path"
-  echo "Created $zip_path"
-}
-
-package_rid "osx-arm64"
-package_rid "osx-x64"
+echo "Launching $APP_BUNDLE_DIR"
+open -W "$APP_BUNDLE_DIR"
