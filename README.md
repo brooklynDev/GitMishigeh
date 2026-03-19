@@ -47,6 +47,8 @@ To generate local release packages:
 make publish
 ```
 
+Automation server details for local UI driving and screenshots are documented in [docs/automation.md](docs/automation.md).
+
 ## macOS Gatekeeper
 
 If macOS blocks the downloaded app, remove the quarantine attribute before opening it:

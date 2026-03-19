@@ -1253,4 +1253,68 @@ public partial class MainWindowViewModel : ViewModelBase
 
         CheckoutSelectedBranchCommand.NotifyCanExecuteChanged();
     }
+
+    public Task AutomationOpenRepositoryAsync(string repositoryPath) => OpenRepositoryAsync(repositoryPath);
+
+    public Task AutomationRefreshAsync() => RefreshAsync();
+
+    public Task AutomationShowWorkingTreeAsync()
+    {
+        ShowWorkingTree();
+        return Task.CompletedTask;
+    }
+
+    public Task AutomationShowHistoryAsync()
+    {
+        ShowHistory();
+        return Task.CompletedTask;
+    }
+
+    public void AutomationSetCommitMessage(string message)
+    {
+        CommitMessage = message;
+    }
+
+    public async Task<bool> AutomationSelectVisibleFileAsync(string path)
+    {
+        foreach (var file in VisibleFiles)
+        {
+            if (!string.Equals(file.Path, path, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            SelectedFileEntry = file;
+            await LoadDiffAsync(file);
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task<bool> AutomationSelectCommitAsync(string shortHash)
+    {
+        foreach (var commit in RecentCommits)
+        {
+            if (!string.Equals(commit.ShortHash, shortHash, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            _suppressCommitLoad = true;
+            try
+            {
+                SelectedCommit = commit;
+            }
+            finally
+            {
+                _suppressCommitLoad = false;
+            }
+
+            await LoadCommitFilesAsync(commit);
+            return true;
+        }
+
+        return false;
+    }
 }
