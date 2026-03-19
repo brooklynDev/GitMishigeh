@@ -225,14 +225,15 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Column="2" RowDefinitions="Auto,*" Margin="12,0,0,0" MinHeight="0">
+        <Grid Grid.Column="2" Margin="12,0,0,0" MinHeight="0">
             <Border Classes="card"
                     CornerRadius="0"
                     BorderThickness="1,0,0,0"
                     MinHeight="0"
                     VerticalAlignment="Stretch">
-                <Grid RowDefinitions="Auto,*" MinHeight="0">
-                    <Border BorderBrush="#23304A"
+                <DockPanel LastChildFill="True" MinHeight="0">
+                    <Border DockPanel.Dock="Top"
+                            BorderBrush="#23304A"
                             BorderThickness="0,0,0,1"
                             Padding="20,16">
                         <StackPanel Spacing="6">
@@ -245,22 +246,74 @@
                         </StackPanel>
                     </Border>
 
-                    <TextBox Grid.Row="1"
-                             x:Name="DiffTextBox"
-                             Margin="0"
-                             Padding="18,14"
-                             Background="#0F172A"
-                             Foreground="#D8E1EE"
-                             BorderThickness="0"
-                             FontFamily="Cascadia Mono, Menlo, Consolas, Monaco, monospace"
-                             FontSize="13"
-                             IsReadOnly="True"
-                             AcceptsReturn="True"
-                             TextWrapping="NoWrap"
-                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             Text="{Binding SelectedDiffDisplayText}" />
-                </Grid>
+                    <ScrollViewer MinHeight="0"
+                                  Background="#0B1220"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Visible">
+                        <ItemsControl Margin="16" ItemsSource="{Binding DiffSections}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="18" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="model:GitDiffSection">
+                                    <Border Classes="diff-section">
+                                        <Grid RowDefinitions="Auto,*">
+                                            <Border Classes="diff-section-header">
+                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                                    <Border Classes="badge"
+                                                            Background="{Binding AccentBrush}"
+                                                            BorderBrush="{Binding AccentBrush}"
+                                                            Padding="10,4"
+                                                            VerticalAlignment="Top">
+                                                        <TextBlock Classes="badge-text"
+                                                                   Foreground="#F8FAFC"
+                                                                   Text="{Binding KindLabel}" />
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1" Spacing="4">
+                                                        <TextBlock Classes="diff-header"
+                                                                   Text="{Binding Title}" />
+                                                        <TextBlock Classes="muted diff-subtitle"
+                                                                   IsVisible="{Binding HasSubtitle}"
+                                                                   Text="{Binding Subtitle}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <ItemsControl Grid.Row="1" ItemsSource="{Binding Lines}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:GitDiffLine">
+                                                        <Border Classes="diff-line"
+                                                                Background="{Binding Background}">
+                                                            <Grid ColumnDefinitions="56,56,*"
+                                                                  HorizontalAlignment="Stretch">
+                                                                <Border Classes="diff-gutter">
+                                                                    <TextBlock Classes="diff-line-number"
+                                                                               Text="{Binding LeftLineNumber}" />
+                                                                </Border>
+                                                                <Border Grid.Column="1" Classes="diff-gutter">
+                                                                    <TextBlock Classes="diff-line-number"
+                                                                               Text="{Binding RightLineNumber}" />
+                                                                </Border>
+                                                                <Border Grid.Column="2" Classes="diff-content">
+                                                                    <TextBlock Classes="diff-text"
+                                                                               Foreground="{Binding Foreground}"
+                                                                               Text="{Binding Text}" />
+                                                                </Border>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
             </Border>
         </Grid>
     </Grid>

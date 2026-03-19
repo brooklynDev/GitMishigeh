@@ -36,6 +36,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ChangedFiles = new ObservableCollection<GitChangedFile>();
         RecentCommits = new ObservableCollection<GitCommitItem>();
         RecentRepositories = new ObservableCollection<RecentRepository>();
+        DiffSections = new ObservableCollection<GitDiffSection>();
 
         OpenRepoCommand = new AsyncRelayCommand(OpenRepoAsync, CanOpenRepo);
         OpenRecentRepositoryCommand = new AsyncRelayCommand<RecentRepository?>(OpenRecentRepositoryAsync, CanOpenRecentRepository);
@@ -51,7 +52,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusSummary = "Repository details will appear here.";
         SelectedDiffHeader = "Diff Preview";
         SelectedDiff = "Select a changed file to inspect its diff.";
-        SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
+        ApplyDiffContent(SelectedDiff);
 
         ChangedFiles.CollectionChanged += (_, _) => NotifyCommandStateChanged();
         _ = LoadRecentRepositoriesAsync();
@@ -62,6 +63,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<GitCommitItem> RecentCommits { get; }
 
     public ObservableCollection<RecentRepository> RecentRepositories { get; }
+
+    public ObservableCollection<GitDiffSection> DiffSections { get; }
 
     public IAsyncRelayCommand OpenRepoCommand { get; }
 
@@ -104,14 +107,13 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private string selectedDiff = string.Empty;
 
-    [ObservableProperty]
-    private string selectedDiffDisplayText = string.Empty;
-
     public bool HasChangedFiles => ChangedFiles.Count > 0;
 
     public bool HasRecentCommits => RecentCommits.Count > 0;
 
     public bool HasRecentRepositories => RecentRepositories.Count > 0;
+
+    public bool HasDiffSections => DiffSections.Count > 0;
 
     private bool CanOpenRepo() => !IsBusy;
 
@@ -364,7 +366,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         SelectedDiffHeader = changedFile.DiffPath;
         SelectedDiff = "Loading diff...";
-        SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
+        ApplyDiffContent(SelectedDiff);
 
         var cancellationTokenSource = new CancellationTokenSource();
         _diffCancellationTokenSource = cancellationTokenSource;
@@ -372,7 +374,7 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             SelectedDiff = await _gitService.GetDiffAsync(_selectedFolderPath, changedFile, cancellationTokenSource.Token);
-            SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
+            ApplyDiffContent(SelectedDiff);
         }
         catch (OperationCanceledException)
         {
@@ -380,7 +382,7 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (GitServiceException exception)
         {
             SelectedDiff = exception.Message;
-            SelectedDiffDisplayText = BuildDiffDisplayText(SelectedDiff);
+            ApplyDiffContent(SelectedDiff);
         }
     }
 
@@ -388,7 +390,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         SelectedDiffHeader = header;
         SelectedDiff = content;
-        SelectedDiffDisplayText = BuildDiffDisplayText(content);
+        ApplyDiffContent(content);
     }
 
     private void SelectChangedFile(GitChangedFile? changedFile)
@@ -407,74 +409,156 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static string BuildDiffDisplayText(string diffText)
+    private void ApplyDiffContent(string diffText)
     {
+        SyncCollection(DiffSections, BuildDiffSections(diffText));
+        OnPropertyChanged(nameof(HasDiffSections));
+    }
+
+    private static IReadOnlyList<GitDiffSection> BuildDiffSections(string diffText)
+    {
+        if (string.IsNullOrWhiteSpace(diffText))
+        {
+            return
+            [
+                CreateInfoSection("Diff Preview", "Nothing to display yet.")
+            ];
+        }
+
         var lines = diffText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-        var preamble = new List<string>();
-        var hunks = new List<List<string>>();
-        List<string>? currentHunk = null;
+        var metadataLines = new List<string>();
+        var sections = new List<GitDiffSection>();
+        List<string>? currentHunkLines = null;
+        string? currentHunkHeader = null;
+        var chunkIndex = 1;
 
         foreach (var line in lines)
         {
             if (line.StartsWith("@@", StringComparison.Ordinal))
             {
-                currentHunk = new List<string> { line };
-                hunks.Add(currentHunk);
+                FinalizeCurrentHunk(sections, currentHunkHeader, currentHunkLines, chunkIndex);
+                if (currentHunkHeader is not null)
+                {
+                    chunkIndex++;
+                }
+
+                currentHunkHeader = line;
+                currentHunkLines = new List<string>();
                 continue;
             }
 
-            if (currentHunk is not null)
+            if (currentHunkLines is not null)
             {
-                currentHunk.Add(line);
+                currentHunkLines.Add(line);
                 continue;
             }
 
-            if (!IsDiffMetadataLine(line))
+            metadataLines.Add(line);
+        }
+
+        FinalizeCurrentHunk(sections, currentHunkHeader, currentHunkLines, chunkIndex);
+
+        var hasPatchContent = currentHunkHeader is not null || sections.Count > 0;
+        var trimmedMetadata = TrimEmptyEdges(metadataLines);
+        if (hasPatchContent)
+        {
+            var headerLines = trimmedMetadata.FindAll(IsDiffMetadataLine);
+            if (headerLines.Count > 0)
             {
-                preamble.Add(line);
+                sections.Insert(0, CreateMetadataSection(headerLines));
             }
+
+            return sections;
         }
 
-        if (hunks.Count == 0)
+        if (trimmedMetadata.Count == 0)
         {
-            var preambleText = string.Join(Environment.NewLine, preamble).Trim();
-            return string.IsNullOrWhiteSpace(preambleText) ? diffText : preambleText;
+            return
+            [
+                CreateInfoSection("Diff Preview", "No textual diff is available for this file.")
+            ];
         }
 
-        var builder = new System.Text.StringBuilder();
-
-        if (preamble.Count > 0)
-        {
-            AppendSection(builder, preamble);
-        }
-
-        foreach (var hunk in hunks)
-        {
-            AppendSection(builder, hunk);
-        }
-
-        return builder.ToString().TrimEnd('\r', '\n');
+        return
+        [
+            CreateInfoSection("Diff Preview", string.Join(Environment.NewLine, trimmedMetadata))
+        ];
     }
 
-    private static void AppendSection(System.Text.StringBuilder builder, IReadOnlyList<string> lines)
+    private static void FinalizeCurrentHunk(
+        ICollection<GitDiffSection> sections,
+        string? currentHunkHeader,
+        IReadOnlyList<string>? currentHunkLines,
+        int chunkIndex)
     {
-        if (lines.Count == 0)
+        if (currentHunkHeader is null || currentHunkLines is null)
         {
             return;
         }
 
-        if (builder.Length > 0)
+        sections.Add(CreateChunkSection(currentHunkHeader, currentHunkLines, chunkIndex));
+    }
+
+    private static GitDiffSection CreateMetadataSection(IReadOnlyList<string> lines)
+    {
+        var leftLineNumber = 0;
+        var rightLineNumber = 0;
+        var diffLines = new List<GitDiffLine>(lines.Count);
+        foreach (var line in lines)
         {
-            builder.AppendLine();
-            builder.AppendLine();
+            diffLines.Add(CreateDiffLine(line, ref leftLineNumber, ref rightLineNumber));
         }
 
-        builder.AppendLine(lines[0]);
+        return new GitDiffSection("File Header", "Paths and patch metadata", "FILE", "#334155", diffLines, false);
+    }
 
-        for (var index = 1; index < lines.Count; index++)
+    private static GitDiffSection CreateInfoSection(string title, string text)
+    {
+        var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+        var diffLines = new List<GitDiffLine>(lines.Length);
+        foreach (var line in lines)
         {
-            builder.AppendLine(lines[index]);
+            diffLines.Add(new GitDiffLine(line, "#D8E1EE", "Transparent", string.Empty, string.Empty));
         }
+
+        return new GitDiffSection(title, string.Empty, "INFO", "#1D4ED8", diffLines, false);
+    }
+
+    private static GitDiffSection CreateChunkSection(string header, IReadOnlyList<string> lines, int chunkIndex)
+    {
+        ParseHunkHeader(header, out var leftLineNumber, out var rightLineNumber);
+        var diffLines = new List<GitDiffLine>(lines.Count);
+
+        foreach (var line in lines)
+        {
+            diffLines.Add(CreateDiffLine(line, ref leftLineNumber, ref rightLineNumber));
+        }
+
+        return new GitDiffSection(
+            $"Hunk {chunkIndex}",
+            header,
+            "HUNK",
+            "#2563EB",
+            diffLines,
+            true);
+    }
+
+    private static List<string> TrimEmptyEdges(List<string> lines)
+    {
+        var start = 0;
+        var end = lines.Count - 1;
+
+        while (start <= end && string.IsNullOrWhiteSpace(lines[start]))
+        {
+            start++;
+        }
+
+        while (end >= start && string.IsNullOrWhiteSpace(lines[end]))
+        {
+            end--;
+        }
+
+        return start > end ? [] : lines.GetRange(start, end - start + 1);
     }
 
     private static bool IsDiffMetadataLine(string line) =>
@@ -483,7 +567,10 @@ public partial class MainWindowViewModel : ViewModelBase
         line.StartsWith("---", StringComparison.Ordinal) ||
         line.StartsWith("+++", StringComparison.Ordinal) ||
         line.StartsWith("new file mode", StringComparison.Ordinal) ||
-        line.StartsWith("deleted file mode", StringComparison.Ordinal);
+        line.StartsWith("deleted file mode", StringComparison.Ordinal) ||
+        line.StartsWith("similarity index", StringComparison.Ordinal) ||
+        line.StartsWith("rename from ", StringComparison.Ordinal) ||
+        line.StartsWith("rename to ", StringComparison.Ordinal);
     private static GitDiffLine CreateDiffLine(string line, ref int leftLineNumber, ref int rightLineNumber)
     {
         if (line.StartsWith("+", StringComparison.Ordinal) && !line.StartsWith("+++", StringComparison.Ordinal))
