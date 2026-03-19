@@ -116,7 +116,23 @@ public sealed class GitService : IGitService
     public async Task<string> PushAsync(string repositoryPath, CancellationToken cancellationToken = default)
     {
         await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
-        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "push");
+        GitCommandResult result;
+        try
+        {
+            result = await RunGitCommandAsync(repositoryPath, cancellationToken, "push");
+        }
+        catch (GitServiceException exception) when (exception.Message.Contains("has no upstream branch", StringComparison.OrdinalIgnoreCase))
+        {
+            var branchResult = await RunGitCommandAsync(repositoryPath, cancellationToken, "rev-parse", "--abbrev-ref", "HEAD");
+            var branchName = branchResult.StandardOutput.Trim();
+            if (string.IsNullOrWhiteSpace(branchName))
+            {
+                throw;
+            }
+
+            result = await RunGitCommandAsync(repositoryPath, cancellationToken, "push", "--set-upstream", "origin", branchName);
+        }
+
         return BuildMutationMessage(result, "Pushed current branch.");
     }
 
