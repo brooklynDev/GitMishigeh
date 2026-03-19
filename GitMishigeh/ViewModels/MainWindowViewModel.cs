@@ -29,6 +29,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private string? _selectedWorkingTreePath;
     private string? _selectedCommitFilePath;
     private bool _suppressCommitLoad;
+    private bool _suppressRecentRepositoryOpen;
+    private DateTimeOffset? _lastFetchedAt;
 
     public MainWindowViewModel() : this(new GitService(), new FolderPickerService(), new RecentRepositoryStore())
     {
@@ -53,6 +55,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenRecentRepositoryCommand = new AsyncRelayCommand<RecentRepository?>(OpenRecentRepositoryAsync, CanOpenRecentRepository);
         ShowWorkingTreeCommand = new RelayCommand(ShowWorkingTree);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
+        FetchCommand = new AsyncRelayCommand(FetchAsync, CanSyncWithRemote);
         PullCommand = new AsyncRelayCommand(PullAsync, CanSyncWithRemote);
         PushCommand = new AsyncRelayCommand(PushAsync, CanSyncWithRemote);
         StageAllCommand = new AsyncRelayCommand(StageAllAsync, CanStageAll);
@@ -103,6 +106,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IAsyncRelayCommand RefreshCommand { get; }
 
+    public IAsyncRelayCommand FetchCommand { get; }
+
     public IAsyncRelayCommand PullCommand { get; }
 
     public IAsyncRelayCommand PushCommand { get; }
@@ -139,6 +144,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private GitCommitItem? selectedCommit;
 
     [ObservableProperty]
+    private RecentRepository? selectedRecentRepository;
+
+    [ObservableProperty]
     private GitChangedFile? selectedFileEntry;
 
     [ObservableProperty]
@@ -160,6 +168,11 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasVisibleFiles => IsShowingCommitHistory ? CommitFiles.Count > 0 : ChangedFiles.Count > 0;
 
     public string PushButtonText => _aheadCount > 0 ? $"Push ({_aheadCount})" : "Push";
+
+    public string FetchStatusText =>
+        _lastFetchedAt is null
+            ? "Never fetched"
+            : BuildRelativeTimeText(_lastFetchedAt.Value);
 
     public string FilePaneHeaderText => IsShowingCommitHistory ? "Files Changed" : "Working Copy";
 
@@ -254,6 +267,15 @@ public partial class MainWindowViewModel : ViewModelBase
         () => _gitService.StageAllAsync(_selectedFolderPath!),
         clearCommitMessage: false);
 
+    private Task FetchAsync() => ExecuteGitActionAsync(
+        () => _gitService.FetchAsync(_selectedFolderPath!),
+        clearCommitMessage: false,
+        onSuccess: () =>
+        {
+            _lastFetchedAt = DateTimeOffset.Now;
+            OnPropertyChanged(nameof(FetchStatusText));
+        });
+
     private Task PullAsync() => ExecuteGitActionAsync(
         () => _gitService.PullAsync(_selectedFolderPath!),
         clearCommitMessage: false);
@@ -296,13 +318,14 @@ public partial class MainWindowViewModel : ViewModelBase
             clearCommitMessage: false);
     }
 
-    private async Task ExecuteGitActionAsync(Func<Task<string>> action, bool clearCommitMessage)
+    private async Task ExecuteGitActionAsync(Func<Task<string>> action, bool clearCommitMessage, Action? onSuccess = null)
     {
         await RunBusyAsync(async () =>
         {
             try
             {
                 OutputMessage = await action();
+                onSuccess?.Invoke();
                 if (clearCommitMessage)
                 {
                     CommitMessage = string.Empty;
@@ -347,6 +370,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasChangedFiles));
         OnPropertyChanged(nameof(HasRecentCommits));
         OnPropertyChanged(nameof(PushButtonText));
+        OnPropertyChanged(nameof(FetchStatusText));
         OnPropertyChanged(nameof(FilePaneSubtitle));
         OnPropertyChanged(nameof(VisibleFiles));
         OnPropertyChanged(nameof(HasVisibleFiles));
@@ -396,6 +420,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasChangedFiles));
         OnPropertyChanged(nameof(HasRecentCommits));
         OnPropertyChanged(nameof(PushButtonText));
+        OnPropertyChanged(nameof(FetchStatusText));
         OnPropertyChanged(nameof(FilePaneSubtitle));
         OnPropertyChanged(nameof(VisibleFiles));
         OnPropertyChanged(nameof(HasVisibleFiles));
@@ -440,6 +465,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var repositories = await _recentRepositoryStore.LoadAsync();
         SyncCollection(RecentRepositories, repositories);
+        UpdateSelectedRecentRepository();
         OnPropertyChanged(nameof(HasRecentRepositories));
     }
 
@@ -447,7 +473,34 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var repositories = await _recentRepositoryStore.AddOrUpdateAsync(repositoryPath);
         SyncCollection(RecentRepositories, repositories);
+        UpdateSelectedRecentRepository();
         OnPropertyChanged(nameof(HasRecentRepositories));
+    }
+
+    private void UpdateSelectedRecentRepository()
+    {
+        _suppressRecentRepositoryOpen = true;
+        try
+        {
+            SelectedRecentRepository = null;
+            if (string.IsNullOrWhiteSpace(_selectedFolderPath))
+            {
+                return;
+            }
+
+            foreach (var repository in RecentRepositories)
+            {
+                if (string.Equals(repository.Path, _selectedFolderPath, StringComparison.Ordinal))
+                {
+                    SelectedRecentRepository = repository;
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            _suppressRecentRepositoryOpen = false;
+        }
     }
 
     private void NotifyCommandStateChanged()
@@ -455,6 +508,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenRepoCommand.NotifyCanExecuteChanged();
         OpenRecentRepositoryCommand.NotifyCanExecuteChanged();
         RefreshCommand.NotifyCanExecuteChanged();
+        FetchCommand.NotifyCanExecuteChanged();
         PullCommand.NotifyCanExecuteChanged();
         PushCommand.NotifyCanExecuteChanged();
         StageAllCommand.NotifyCanExecuteChanged();
@@ -482,6 +536,16 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnIsBusyChanged(bool value)
     {
         NotifyCommandStateChanged();
+    }
+
+    partial void OnSelectedRecentRepositoryChanged(RecentRepository? value)
+    {
+        if (_suppressRecentRepositoryOpen || value is null || string.Equals(value.Path, _selectedFolderPath, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _ = OpenRecentRepositoryAsync(value);
     }
 
     partial void OnSelectedCommitChanged(GitCommitItem? value)
@@ -950,5 +1014,29 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return builder.ToString();
+    }
+
+    private static string BuildRelativeTimeText(DateTimeOffset timestamp)
+    {
+        var elapsed = DateTimeOffset.Now - timestamp;
+        if (elapsed.TotalMinutes < 1)
+        {
+            return "Fetched just now";
+        }
+
+        if (elapsed.TotalHours < 1)
+        {
+            var minutes = Math.Max(1, (int)Math.Floor(elapsed.TotalMinutes));
+            return $"Last fetched {minutes} minute{(minutes == 1 ? string.Empty : "s")} ago";
+        }
+
+        if (elapsed.TotalDays < 1)
+        {
+            var hours = Math.Max(1, (int)Math.Floor(elapsed.TotalHours));
+            return $"Last fetched {hours} hour{(hours == 1 ? string.Empty : "s")} ago";
+        }
+
+        var days = Math.Max(1, (int)Math.Floor(elapsed.TotalDays));
+        return $"Last fetched {days} day{(days == 1 ? string.Empty : "s")} ago";
     }
 }

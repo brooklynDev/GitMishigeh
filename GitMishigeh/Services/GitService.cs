@@ -93,6 +93,13 @@ public sealed class GitService : IGitService
         return BuildMutationMessage(result, $"Discarded changes in {changedFile.DiffPath}.");
     }
 
+    public async Task<string> FetchAsync(string repositoryPath, CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "fetch", "origin", "--prune");
+        return BuildMutationMessage(result, "Fetched origin.");
+    }
+
     public async Task<string> PullAsync(string repositoryPath, CancellationToken cancellationToken = default)
     {
         await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
