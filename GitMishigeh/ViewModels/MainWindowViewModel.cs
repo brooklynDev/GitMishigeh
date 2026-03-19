@@ -31,10 +31,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
     }
 
-    public MainWindowViewModel(
-        IGitService gitService,
-        IFolderPickerService folderPickerService,
-        IRecentRepositoryStore recentRepositoryStore)
+    public MainWindowViewModel(IGitService gitService, IFolderPickerService folderPickerService, IRecentRepositoryStore recentRepositoryStore)
     {
         _gitService = gitService;
         _folderPickerService = folderPickerService;
