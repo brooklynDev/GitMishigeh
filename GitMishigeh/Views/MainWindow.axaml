@@ -96,12 +96,16 @@
         <Style Selector="Border.sidebar-head-pill">
             <Setter Property="Background" Value="#2E3A4A" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="MinHeight" Value="22" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="TextBlock.sidebar-head-pill-text">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="#D6DEEA" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.top-strip">
             <Setter Property="Background" Value="#1B2330" />

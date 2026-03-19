@@ -313,8 +313,7 @@ public sealed class GitService : IGitService
             .ToList();
 
         return branches
-            .OrderByDescending(branch => branch.IsCurrent)
-            .ThenBy(branch => branch.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(branch => branch.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
