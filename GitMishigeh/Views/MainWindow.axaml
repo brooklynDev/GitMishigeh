@@ -57,7 +57,7 @@
         </Style>
         <Style Selector="Border.sidebar-nav-item">
             <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Padding" Value="10,5" />
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Border.sidebar-nav-item.active">
@@ -234,14 +234,14 @@
 
                 <ScrollViewer Grid.Row="1" Classes="list-scroll">
                     <StackPanel Margin="10,10,10,12" Spacing="12">
-                        <StackPanel Spacing="4">
+                        <StackPanel Spacing="2">
                             <Button Command="{Binding ShowWorkingTreeCommand}"
+                                    IsVisible="{Binding IsWorkingCopyMode}"
                                     Background="Transparent"
                                     BorderThickness="0"
                                     Padding="0"
                                     HorizontalContentAlignment="Stretch">
-                                <Border Classes="sidebar-nav-item active"
-                                        IsVisible="{Binding IsWorkingCopyMode}">
+                                <Border Classes="sidebar-nav-item active">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                         <TextBlock Classes="sidebar-nav-icon" Text="▭" />
                                         <TextBlock Grid.Column="1"
@@ -257,12 +257,12 @@
                             </Button>
 
                             <Button Command="{Binding ShowWorkingTreeCommand}"
+                                    IsVisible="{Binding IsShowingCommitHistory}"
                                     Background="Transparent"
                                     BorderThickness="0"
                                     Padding="0"
                                     HorizontalContentAlignment="Stretch">
-                                <Border Classes="sidebar-nav-item"
-                                        IsVisible="{Binding IsShowingCommitHistory}">
+                                <Border Classes="sidebar-nav-item">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                         <TextBlock Classes="sidebar-nav-icon" Text="▭" />
                                         <TextBlock Grid.Column="1"
@@ -276,12 +276,12 @@
                             </Button>
 
                             <Button Command="{Binding ShowHistoryCommand}"
+                                    IsVisible="{Binding IsShowingCommitHistory}"
                                     Background="Transparent"
                                     BorderThickness="0"
                                     Padding="0"
                                     HorizontalContentAlignment="Stretch">
-                                <Border Classes="sidebar-nav-item active"
-                                        IsVisible="{Binding IsShowingCommitHistory}">
+                                <Border Classes="sidebar-nav-item active">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                                         <TextBlock Classes="sidebar-nav-icon" Text="◔" />
                                         <TextBlock Grid.Column="1"
@@ -292,12 +292,12 @@
                             </Button>
 
                             <Button Command="{Binding ShowHistoryCommand}"
+                                    IsVisible="{Binding IsWorkingCopyMode}"
                                     Background="Transparent"
                                     BorderThickness="0"
                                     Padding="0"
                                     HorizontalContentAlignment="Stretch">
-                                <Border Classes="sidebar-nav-item"
-                                        IsVisible="{Binding IsWorkingCopyMode}">
+                                <Border Classes="sidebar-nav-item">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                                         <TextBlock Classes="sidebar-nav-icon" Text="◔" />
                                         <TextBlock Grid.Column="1"
