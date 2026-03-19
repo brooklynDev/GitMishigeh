@@ -74,6 +74,7 @@ public partial class MainWindowViewModel : ViewModelBase
         CheckoutBranchCommand = new AsyncRelayCommand<GitBranchItem?>(CheckoutBranchAsync, CanCheckoutBranch);
         CreateBranchCommand = new AsyncRelayCommand(CreateBranchAsync, CanCreateBranch);
         DeleteBranchCommand = new AsyncRelayCommand<GitBranchItem?>(DeleteBranchAsync, CanDeleteBranch);
+        ForceDeleteBranchCommand = new AsyncRelayCommand<GitBranchItem?>(ForceDeleteBranchAsync, CanDeleteBranch);
         StageAllCommand = new AsyncRelayCommand(StageAllAsync, CanStageAll);
         UnstageAllCommand = new AsyncRelayCommand(UnstageAllAsync, CanUnstageAll);
         ToggleStageFileCommand = new AsyncRelayCommand<GitChangedFile?>(ToggleStageFileAsync, CanToggleStageFile);
@@ -149,6 +150,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand CreateBranchCommand { get; }
 
     public IAsyncRelayCommand<GitBranchItem?> DeleteBranchCommand { get; }
+
+    public IAsyncRelayCommand<GitBranchItem?> ForceDeleteBranchCommand { get; }
 
     public IAsyncRelayCommand StageAllCommand { get; }
 
@@ -443,6 +446,18 @@ public partial class MainWindowViewModel : ViewModelBase
             clearCommitMessage: false);
     }
 
+    private Task ForceDeleteBranchAsync(GitBranchItem? branch)
+    {
+        if (branch is null || branch.IsCurrent)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteGitActionAsync(
+            () => _gitService.ForceDeleteBranchAsync(_selectedFolderPath!, branch.Name),
+            clearCommitMessage: false);
+    }
+
     private Task UnstageAllAsync() => ExecuteGitActionAsync(
         () => _gitService.UnstageAllAsync(_selectedFolderPath!),
         clearCommitMessage: false);
@@ -688,6 +703,7 @@ public partial class MainWindowViewModel : ViewModelBase
         CheckoutBranchCommand.NotifyCanExecuteChanged();
         CreateBranchCommand.NotifyCanExecuteChanged();
         DeleteBranchCommand.NotifyCanExecuteChanged();
+        ForceDeleteBranchCommand.NotifyCanExecuteChanged();
         ShowHistoryCommand.NotifyCanExecuteChanged();
         StageAllCommand.NotifyCanExecuteChanged();
         UnstageAllCommand.NotifyCanExecuteChanged();
@@ -781,6 +797,8 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         CheckoutSelectedBranchCommand.NotifyCanExecuteChanged();
+        DeleteBranchCommand.NotifyCanExecuteChanged();
+        ForceDeleteBranchCommand.NotifyCanExecuteChanged();
     }
 
     private async Task LoadCommitFilesAsync(GitCommitItem? commit)
@@ -1398,6 +1416,58 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return false;
+    }
+
+    public void AutomationOpenBranchManager()
+    {
+        OpenBranchManager();
+    }
+
+    public void AutomationCloseBranchManager()
+    {
+        CloseBranchManager();
+    }
+
+    public void AutomationSetNewBranchName(string value)
+    {
+        NewBranchName = value ?? string.Empty;
+    }
+
+    public bool AutomationSelectBranch(string value)
+    {
+        foreach (var branch in Branches)
+        {
+            if (!string.Equals(branch.Name, value, StringComparison.Ordinal) &&
+                !string.Equals(branch.Name, value, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            SelectedBranch = branch;
+            return true;
+        }
+
+        return false;
+    }
+
+    public Task AutomationCreateBranchAsync()
+    {
+        return CreateBranchAsync();
+    }
+
+    public Task AutomationCheckoutSelectedBranchAsync()
+    {
+        return CheckoutSelectedBranchAsync();
+    }
+
+    public Task AutomationDeleteSelectedBranchAsync()
+    {
+        return DeleteBranchAsync(SelectedBranch);
+    }
+
+    public Task AutomationForceDeleteSelectedBranchAsync()
+    {
+        return ForceDeleteBranchAsync(SelectedBranch);
     }
 
     public void AutomationSetPaneWidths(double? leftPaneWidth, double? middlePaneWidth)

@@ -164,6 +164,12 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             case "show_history":
                 await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationShowHistoryAsync());
                 return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "open_branch_manager":
+                await Dispatcher.UIThread.InvokeAsync(_viewModel.AutomationOpenBranchManager);
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "close_branch_manager":
+                await Dispatcher.UIThread.InvokeAsync(_viewModel.AutomationCloseBranchManager);
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             case "select_recent_repository":
             {
                 var value = GetRequiredString(root, "value");
@@ -182,6 +188,18 @@ public sealed class LocalAutomationServer : IAsyncDisposable
                 var selected = await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSelectCommitAsync(shortHash));
                 return new { ok = selected, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             }
+            case "select_branch":
+            {
+                var value = GetRequiredString(root, "value");
+                var selected = await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSelectBranch(value));
+                return new { ok = selected, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            }
+            case "set_new_branch_name":
+            {
+                var value = GetRequiredString(root, "value");
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSetNewBranchName(value));
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            }
             case "set_commit_message":
             {
                 var message = root.TryGetProperty("message", out var messageElement) && messageElement.ValueKind == JsonValueKind.String
@@ -190,6 +208,18 @@ public sealed class LocalAutomationServer : IAsyncDisposable
                 await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSetCommitMessage(message));
                 return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             }
+            case "create_branch":
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationCreateBranchAsync());
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "checkout_selected_branch":
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationCheckoutSelectedBranchAsync());
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "delete_selected_branch":
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationDeleteSelectedBranchAsync());
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
+            case "force_delete_selected_branch":
+                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationForceDeleteSelectedBranchAsync());
+                return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             case "set_pane_widths":
             {
                 var leftPaneWidth = TryGetDouble(root, "left");
@@ -261,6 +291,20 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             });
         }
 
+        var branches = new List<object>();
+        foreach (var branch in _viewModel.Branches)
+        {
+            branches.Add(new
+            {
+                name = branch.Name,
+                isCurrent = branch.IsCurrent,
+                canCheckout = branch.CanCheckout,
+                canDelete = branch.CanDelete,
+                tipCommitSubject = branch.TipCommitSubject,
+                tipCommitMeta = branch.TipCommitMeta
+            });
+        }
+
         return new
         {
             repositoryPath = _viewModel.RepositoryPath,
@@ -274,9 +318,13 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             isHistoryMode = _viewModel.IsShowingCommitHistory,
             selectedFile = _viewModel.SelectedFileEntry?.Path,
             selectedCommit = _viewModel.SelectedCommit?.ShortHash,
+            selectedBranch = _viewModel.SelectedBranch?.Name,
+            newBranchName = _viewModel.NewBranchName,
+            isBranchManagerOpen = _viewModel.IsBranchManagerOpen,
             navigationPaneWidth = _window.ActualNavigationPaneWidth,
             filePaneWidth = _window.ActualFilePaneWidth,
             visibleFiles = files,
+            branches,
             recentCommits = commits,
             recentRepositories = recentRepositories,
             diffSectionCount = _viewModel.DiffSections.Count

@@ -171,8 +171,30 @@ public sealed class GitService : IGitService
 
         await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
         var normalizedBranchName = branchName.Trim();
-        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "branch", "-d", normalizedBranchName);
+        GitCommandResult result;
+        try
+        {
+            result = await RunGitCommandAsync(repositoryPath, cancellationToken, "branch", "-d", normalizedBranchName);
+        }
+        catch (GitServiceException exception) when (exception.Message.Contains("not fully merged", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new GitServiceException($"'{normalizedBranchName}' still has unmerged commits. Use Force Delete if you want to remove it anyway.");
+        }
+
         return BuildMutationMessage(result, $"Deleted {normalizedBranchName}.");
+    }
+
+    public async Task<string> ForceDeleteBranchAsync(string repositoryPath, string branchName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(branchName))
+        {
+            throw new GitServiceException("Choose a branch to delete.");
+        }
+
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var normalizedBranchName = branchName.Trim();
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "branch", "-D", normalizedBranchName);
+        return BuildMutationMessage(result, $"Force deleted {normalizedBranchName}.");
     }
 
     public async Task<string> CommitAsync(string repositoryPath, string commitMessage, CancellationToken cancellationToken = default)
@@ -271,18 +293,28 @@ public sealed class GitService : IGitService
         var result = await RunGitCommandAsync(
             repositoryPath,
             cancellationToken,
-            "branch",
-            "--format=%(refname:short)\t%(HEAD)");
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(refname:short)\t%(HEAD)\t%(authorname)\t%(contents:subject)\t%(committerdate:relative)",
+            "refs/heads");
 
-        return result.StandardOutput
+        var branches = result.StandardOutput
             .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(line =>
             {
                 var parts = line.Split('\t');
                 var name = parts[0].Trim();
                 var isCurrent = parts.Length > 1 && parts[1].Trim() == "*";
-                return new GitBranchItem(name, isCurrent);
+                var tipCommitAuthor = parts.Length > 2 ? parts[2].Trim() : string.Empty;
+                var tipCommitSubject = parts.Length > 3 ? parts[3].Trim() : string.Empty;
+                var tipCommitRelativeTime = parts.Length > 4 ? parts[4].Trim() : string.Empty;
+                return new GitBranchItem(name, isCurrent, tipCommitSubject, tipCommitAuthor, tipCommitRelativeTime);
             })
+            .ToList();
+
+        return branches
+            .OrderByDescending(branch => branch.IsCurrent)
+            .ThenBy(branch => branch.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 

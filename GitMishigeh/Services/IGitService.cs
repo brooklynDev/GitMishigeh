@@ -31,6 +31,8 @@ public interface IGitService
 
     Task<string> DeleteBranchAsync(string repositoryPath, string branchName, CancellationToken cancellationToken = default);
 
+    Task<string> ForceDeleteBranchAsync(string repositoryPath, string branchName, CancellationToken cancellationToken = default);
+
     Task<string> CommitAsync(string repositoryPath, string commitMessage, CancellationToken cancellationToken = default);
 
     Task<string> GetDiffAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default);

@@ -113,6 +113,26 @@ Payload:
 { "command": "show_history" }
 ```
 
+### `open_branch_manager`
+
+Opens the branch manager modal.
+
+Payload:
+
+```json
+{ "command": "open_branch_manager" }
+```
+
+### `close_branch_manager`
+
+Closes the branch manager modal.
+
+Payload:
+
+```json
+{ "command": "close_branch_manager" }
+```
+
 ### `select_recent_repository`
 
 Selects a repository from the top-left recent repository picker by display name or full path.
@@ -123,6 +143,16 @@ Payload:
 { "command": "select_recent_repository", "value": "GitMishigeh" }
 ```
 
+### `select_branch`
+
+Selects a branch by name in the branch list or branch manager.
+
+Payload:
+
+```json
+{ "command": "select_branch", "value": "feature/login" }
+```
+
 ### `select_changed_file`
 
 Selects a visible changed file by path and loads its diff.
@@ -131,6 +161,16 @@ Payload:
 
 ```json
 { "command": "select_changed_file", "path": "relative/or/displayed/path" }
+```
+
+### `set_new_branch_name`
+
+Updates the branch manager's new-branch textbox.
+
+Payload:
+
+```json
+{ "command": "set_new_branch_name", "value": "feature/login" }
 ```
 
 ### `select_commit`
@@ -151,6 +191,46 @@ Payload:
 
 ```json
 { "command": "set_commit_message", "message": "My commit message" }
+```
+
+### `create_branch`
+
+Creates a branch using the current new-branch textbox value.
+
+Payload:
+
+```json
+{ "command": "create_branch" }
+```
+
+### `checkout_selected_branch`
+
+Checks out the currently selected branch.
+
+Payload:
+
+```json
+{ "command": "checkout_selected_branch" }
+```
+
+### `delete_selected_branch`
+
+Deletes the currently selected branch.
+
+Payload:
+
+```json
+{ "command": "delete_selected_branch" }
+```
+
+### `force_delete_selected_branch`
+
+Force deletes the currently selected branch.
+
+Payload:
+
+```json
+{ "command": "force_delete_selected_branch" }
 ```
 
 ### `set_pane_widths`
@@ -228,9 +308,13 @@ Most commands return:
     "isHistoryMode": false,
     "selectedFile": null,
     "selectedCommit": null,
+    "selectedBranch": null,
+    "newBranchName": "",
+    "isBranchManagerOpen": false,
     "navigationPaneWidth": 220,
     "filePaneWidth": 540,
     "visibleFiles": [],
+    "branches": [],
     "recentCommits": [],
     "recentRepositories": [],
     "diffSectionCount": 0

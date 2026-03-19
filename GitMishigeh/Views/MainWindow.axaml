@@ -89,6 +89,10 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Foreground" Value="#D6DEEA" />
         </Style>
+        <Style Selector="TextBlock.sidebar-row-meta">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#7F8EA7" />
+        </Style>
         <Style Selector="Border.sidebar-head-pill">
             <Setter Property="Background" Value="#2E3A4A" />
             <Setter Property="CornerRadius" Value="999" />
@@ -134,6 +138,31 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="18" />
             <Setter Property="Padding" Value="20" />
+        </Style>
+        <Style Selector="Border.branch-details-card">
+            <Setter Property="Background" Value="#111823" />
+            <Setter Property="BorderBrush" Value="#28364A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="TextBlock.branch-title">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#E8EDF7" />
+        </Style>
+        <Style Selector="TextBlock.branch-subtitle">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#9BABBE" />
+        </Style>
+        <Style Selector="TextBlock.branch-commit-title">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#DCE5F3" />
+        </Style>
+        <Style Selector="TextBlock.branch-commit-meta">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#7F8EA7" />
         </Style>
     </Window.Styles>
 
@@ -393,9 +422,14 @@
                                         <Border Classes="sidebar-row">
                                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                                 <TextBlock Classes="sidebar-nav-icon" Text="⑂" FontSize="14" />
-                                                <TextBlock Grid.Column="1"
-                                                           Classes="sidebar-row-text"
-                                                           Text="{Binding Name}" />
+                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                    <TextBlock Classes="sidebar-row-text"
+                                                               Text="{Binding Name}" />
+                                                    <TextBlock Classes="sidebar-row-meta"
+                                                               IsVisible="{Binding HasTipCommit}"
+                                                               Text="{Binding TipCommitSubject}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
                                                 <Border Grid.Column="2"
                                                         Classes="sidebar-head-pill"
                                                         IsVisible="{Binding IsCurrent}">
@@ -663,7 +697,7 @@
                 IsVisible="{Binding IsBranchManagerOpen}">
             <Grid>
                 <Border Classes="modal-card"
-                        Width="640"
+                        Width="760"
                         MaxHeight="720"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
@@ -680,15 +714,24 @@
                                     Content="Close" />
                         </Grid>
 
-                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                            <TextBox Grid.Column="0"
-                                     Watermark="New branch name"
-                                     Text="{Binding NewBranchName, UpdateSourceTrigger=PropertyChanged}" />
-                            <Button Grid.Column="1"
-                                    Command="{Binding CreateBranchCommand}"
-                                    Content="Create Branch"
-                                    MinWidth="120" />
-                        </Grid>
+                        <Border Grid.Row="1"
+                                Classes="branch-details-card">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="label" Text="Create Branch" />
+                                    <TextBox Watermark="feature/my-work"
+                                             Text="{Binding NewBranchName, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Classes="branch-subtitle"
+                                               Text="{Binding CurrentBranch, StringFormat='Creates from {0} and checks it out immediately.'}" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Command="{Binding CreateBranchCommand}"
+                                        Content="Create Branch"
+                                        VerticalAlignment="Center"
+                                        MinWidth="132" />
+                            </Grid>
+                        </Border>
 
                         <Border Grid.Row="2"
                                 Classes="card"
@@ -698,9 +741,9 @@
                                 <Border BorderBrush="#23304A"
                                         BorderThickness="0,0,0,1"
                                         Padding="16,12">
-                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                    <Grid ColumnDefinitions="*,220,Auto" ColumnSpacing="12">
                                         <TextBlock Classes="label" Text="Branch" />
-                                        <TextBlock Grid.Column="1" Classes="label" Text="State" />
+                                        <TextBlock Grid.Column="1" Classes="label" Text="Latest Commit" />
                                         <TextBlock Grid.Column="2" Classes="label" Text="Actions" />
                                     </Grid>
                                 </Border>
@@ -711,21 +754,34 @@
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="model:GitBranchItem">
                                                 <Border Classes="list-item">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-                                                        <StackPanel Spacing="2">
-                                                            <TextBlock Classes="list-title"
-                                                                       Text="{Binding Name}" />
-                                                            <TextBlock Classes="subtle"
-                                                                       Text="Current branch"
+                                                    <Grid ColumnDefinitions="*,220,Auto" ColumnSpacing="12">
+                                                        <StackPanel Spacing="4">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Classes="branch-title"
+                                                                           Text="{Binding Name}" />
+                                                                <Border Classes="sidebar-head-pill"
+                                                                        IsVisible="{Binding IsCurrent}"
+                                                                        VerticalAlignment="Center">
+                                                                    <TextBlock Classes="sidebar-head-pill-text"
+                                                                               Text="{Binding HeadLabel}" />
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <TextBlock Classes="branch-subtitle"
+                                                                       Text="Checked out now"
                                                                        IsVisible="{Binding IsCurrent}" />
                                                         </StackPanel>
-                                                        <Border Grid.Column="1"
-                                                                Classes="sidebar-head-pill"
-                                                                IsVisible="{Binding IsCurrent}"
-                                                                VerticalAlignment="Center">
-                                                            <TextBlock Classes="sidebar-head-pill-text"
-                                                                       Text="{Binding HeadLabel}" />
-                                                        </Border>
+                                                        <StackPanel Grid.Column="1"
+                                                                    Spacing="2"
+                                                                    VerticalAlignment="Center">
+                                                            <TextBlock Classes="branch-commit-title"
+                                                                       IsVisible="{Binding HasTipCommit}"
+                                                                       Text="{Binding TipCommitSubject}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Classes="branch-commit-meta"
+                                                                       IsVisible="{Binding HasTipCommit}"
+                                                                       Text="{Binding TipCommitMeta}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
                                                         <StackPanel Grid.Column="2"
                                                                     Orientation="Horizontal"
                                                                     Spacing="8">
@@ -733,11 +789,6 @@
                                                                     CommandParameter="{Binding .}"
                                                                     Content="Switch"
                                                                     IsVisible="{Binding CanCheckout}" />
-                                                            <Button Classes="subtle"
-                                                                    Command="{Binding #RootWindow.DataContext.DeleteBranchCommand}"
-                                                                    CommandParameter="{Binding .}"
-                                                                    Content="Delete"
-                                                                    IsVisible="{Binding CanDelete}" />
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>
@@ -748,14 +799,27 @@
                             </Grid>
                         </Border>
 
-                        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="10">
                             <TextBlock Classes="subtle"
                                        VerticalAlignment="Center"
-                                       Text="{Binding CurrentBranch, StringFormat='Current branch: {0}'}" />
+                                       Text="{Binding SelectedBranch.Name, FallbackValue='No branch selected', StringFormat='Selected branch: {0}'}" />
                             <Button Grid.Column="1"
                                     Command="{Binding CheckoutSelectedBranchCommand}"
-                                    Content="Switch Selected" />
+                                    Content="Switch Selected"
+                                    IsVisible="{Binding SelectedBranch.CanCheckout}" />
                             <Button Grid.Column="2"
+                                    Classes="subtle"
+                                    Command="{Binding DeleteBranchCommand}"
+                                    CommandParameter="{Binding SelectedBranch}"
+                                    Content="Delete"
+                                    IsVisible="{Binding SelectedBranch.CanDelete}" />
+                            <Button Grid.Column="3"
+                                    Classes="subtle"
+                                    Command="{Binding ForceDeleteBranchCommand}"
+                                    CommandParameter="{Binding SelectedBranch}"
+                                    Content="Force Delete"
+                                    IsVisible="{Binding SelectedBranch.CanDelete}" />
+                            <Button Grid.Column="4"
                                     Classes="subtle"
                                     Command="{Binding CloseBranchManagerCommand}"
                                     Content="Done" />
