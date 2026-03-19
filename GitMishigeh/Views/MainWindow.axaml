@@ -51,9 +51,9 @@
             <Setter Property="Padding" Value="0" />
         </Style>
         <Style Selector="TextBlock.sidebar-heading">
-            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#9AA7BC" />
+            <Setter Property="Foreground" Value="#AAB7CB" />
         </Style>
         <Style Selector="Border.sidebar-nav-item">
             <Setter Property="CornerRadius" Value="9" />
