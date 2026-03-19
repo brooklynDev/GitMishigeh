@@ -46,6 +46,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenRepoCommand = new AsyncRelayCommand(OpenRepoAsync, CanOpenRepo);
         OpenRecentRepositoryCommand = new AsyncRelayCommand<RecentRepository?>(OpenRecentRepositoryAsync, CanOpenRecentRepository);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
+        PullCommand = new AsyncRelayCommand(PullAsync, CanSyncWithRemote);
+        PushCommand = new AsyncRelayCommand(PushAsync, CanSyncWithRemote);
         StageAllCommand = new AsyncRelayCommand(StageAllAsync, CanStageAll);
         UnstageAllCommand = new AsyncRelayCommand(UnstageAllAsync, CanUnstageAll);
         ToggleStageFileCommand = new AsyncRelayCommand<GitChangedFile?>(ToggleStageFileAsync, CanToggleStageFile);
@@ -83,6 +85,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand<RecentRepository?> OpenRecentRepositoryCommand { get; }
 
     public IAsyncRelayCommand RefreshCommand { get; }
+
+    public IAsyncRelayCommand PullCommand { get; }
+
+    public IAsyncRelayCommand PushCommand { get; }
 
     public IAsyncRelayCommand StageAllCommand { get; }
 
@@ -132,6 +138,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool CanOpenRecentRepository(RecentRepository? repository) => !IsBusy && repository is not null;
 
     private bool CanRefresh() => !IsBusy && _hasValidRepository;
+
+    private bool CanSyncWithRemote() => !IsBusy && _hasValidRepository;
 
     private bool CanStageAll() => !IsBusy && _hasValidRepository && ChangedFiles.Count > 0;
 
@@ -193,6 +201,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private Task StageAllAsync() => ExecuteGitActionAsync(
         () => _gitService.StageAllAsync(_selectedFolderPath!),
+        clearCommitMessage: false);
+
+    private Task PullAsync() => ExecuteGitActionAsync(
+        () => _gitService.PullAsync(_selectedFolderPath!),
+        clearCommitMessage: false);
+
+    private Task PushAsync() => ExecuteGitActionAsync(
+        () => _gitService.PushAsync(_selectedFolderPath!),
         clearCommitMessage: false);
 
     private Task UnstageAllAsync() => ExecuteGitActionAsync(
@@ -327,6 +343,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenRepoCommand.NotifyCanExecuteChanged();
         OpenRecentRepositoryCommand.NotifyCanExecuteChanged();
         RefreshCommand.NotifyCanExecuteChanged();
+        PullCommand.NotifyCanExecuteChanged();
+        PushCommand.NotifyCanExecuteChanged();
         StageAllCommand.NotifyCanExecuteChanged();
         UnstageAllCommand.NotifyCanExecuteChanged();
         ToggleStageFileCommand.NotifyCanExecuteChanged();

@@ -59,6 +59,20 @@ public sealed class GitService : IGitService
         return BuildMutationMessage(result, $"Unstaged {changedFile.DiffPath}.");
     }
 
+    public async Task<string> PullAsync(string repositoryPath, CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "pull", "--ff-only");
+        return BuildMutationMessage(result, "Pulled latest changes.");
+    }
+
+    public async Task<string> PushAsync(string repositoryPath, CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "push");
+        return BuildMutationMessage(result, "Pushed current branch.");
+    }
+
     public async Task<string> CommitAsync(string repositoryPath, string commitMessage, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(commitMessage))

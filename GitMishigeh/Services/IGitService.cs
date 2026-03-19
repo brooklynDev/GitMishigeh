@@ -16,6 +16,10 @@ public interface IGitService
 
     Task<string> UnstageFileAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default);
 
+    Task<string> PullAsync(string repositoryPath, CancellationToken cancellationToken = default);
+
+    Task<string> PushAsync(string repositoryPath, CancellationToken cancellationToken = default);
+
     Task<string> CommitAsync(string repositoryPath, string commitMessage, CancellationToken cancellationToken = default);
 
     Task<string> GetDiffAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default);

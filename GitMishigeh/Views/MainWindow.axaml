@@ -167,13 +167,19 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
-                <Button Command="{Binding StageAllCommand}" Content="Stage All" />
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="10">
+                <Button Command="{Binding PullCommand}" Content="Pull" />
                 <Button Grid.Column="1"
+                        Command="{Binding PushCommand}"
+                        Content="Push" />
+                <Button Grid.Column="2"
+                        Command="{Binding StageAllCommand}"
+                        Content="Stage All" />
+                <Button Grid.Column="3"
                         Classes="subtle"
                         Command="{Binding UnstageAllCommand}"
                         Content="Unstage All" />
-                <TextBlock Grid.Column="2"
+                <TextBlock Grid.Column="4"
                            Classes="muted"
                            VerticalAlignment="Center"
                            HorizontalAlignment="Right"
