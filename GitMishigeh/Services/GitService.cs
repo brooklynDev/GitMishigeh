@@ -45,6 +45,20 @@ public sealed class GitService : IGitService
         return BuildMutationMessage(result, "Unstaged all changes.");
     }
 
+    public async Task<string> StageFileAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "add", "--", changedFile.DiffPath);
+        return BuildMutationMessage(result, $"Staged {changedFile.DiffPath}.");
+    }
+
+    public async Task<string> UnstageFileAsync(string repositoryPath, GitChangedFile changedFile, CancellationToken cancellationToken = default)
+    {
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "restore", "--staged", "--", changedFile.DiffPath);
+        return BuildMutationMessage(result, $"Unstaged {changedFile.DiffPath}.");
+    }
+
     public async Task<string> CommitAsync(string repositoryPath, string commitMessage, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(commitMessage))

@@ -35,7 +35,4 @@ public partial class GitChangedFile : ObservableObject
         IsStaged && IsModified ? "Staged + Modified" :
         IsStaged ? "Staged" :
         "Modified";
-
-    [ObservableProperty]
-    private bool isSelected;
 }

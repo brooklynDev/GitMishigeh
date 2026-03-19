@@ -200,8 +200,8 @@
                                         <Grid ColumnDefinitions="72,*" ColumnSpacing="10">
                                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                 <CheckBox Classes="file-selector"
-                                                          IsChecked="{Binding IsSelected}"
-                                                          Command="{Binding #RootWindow.DataContext.SelectChangedFileCommand}"
+                                                          IsChecked="{Binding IsStaged, Mode=OneWay}"
+                                                          Command="{Binding #RootWindow.DataContext.ToggleStageFileCommand}"
                                                           CommandParameter="{Binding .}" />
                                                 <Border Classes="badge" VerticalAlignment="Center">
                                                     <TextBlock Classes="badge-text" Text="{Binding StatusCode}" />

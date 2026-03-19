@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitMishigeh.Models;
@@ -16,9 +18,12 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IGitService _gitService;
     private readonly IFolderPickerService _folderPickerService;
     private readonly IRecentRepositoryStore _recentRepositoryStore;
+    private readonly DispatcherTimer _autoRefreshTimer;
     private string? _selectedFolderPath;
     private bool _hasValidRepository;
     private CancellationTokenSource? _diffCancellationTokenSource;
+    private bool _isAutoRefreshing;
+    private string _repositoryFingerprint = string.Empty;
 
     public MainWindowViewModel() : this(new GitService(), new FolderPickerService(), new RecentRepositoryStore())
     {
@@ -40,11 +45,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
         OpenRepoCommand = new AsyncRelayCommand(OpenRepoAsync, CanOpenRepo);
         OpenRecentRepositoryCommand = new AsyncRelayCommand<RecentRepository?>(OpenRecentRepositoryAsync, CanOpenRecentRepository);
-        SelectChangedFileCommand = new RelayCommand<GitChangedFile?>(SelectChangedFile);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
         StageAllCommand = new AsyncRelayCommand(StageAllAsync, CanStageAll);
         UnstageAllCommand = new AsyncRelayCommand(UnstageAllAsync, CanUnstageAll);
+        ToggleStageFileCommand = new AsyncRelayCommand<GitChangedFile?>(ToggleStageFileAsync, CanToggleStageFile);
         CommitCommand = new AsyncRelayCommand(CommitAsync, CanCommit);
+
+        _autoRefreshTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        _autoRefreshTimer.Tick += AutoRefreshTimerOnTick;
+        _autoRefreshTimer.Start();
 
         OutputMessage = "Open a local Git repository to begin.";
         RepositoryPath = "No repository selected";
@@ -70,13 +82,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IAsyncRelayCommand<RecentRepository?> OpenRecentRepositoryCommand { get; }
 
-    public IRelayCommand<GitChangedFile?> SelectChangedFileCommand { get; }
-
     public IAsyncRelayCommand RefreshCommand { get; }
 
     public IAsyncRelayCommand StageAllCommand { get; }
 
     public IAsyncRelayCommand UnstageAllCommand { get; }
+
+    public IAsyncRelayCommand<GitChangedFile?> ToggleStageFileCommand { get; }
 
     public IAsyncRelayCommand CommitCommand { get; }
 
@@ -125,6 +137,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanUnstageAll() => !IsBusy && _hasValidRepository && ChangedFiles.Count > 0;
 
+    private bool CanToggleStageFile(GitChangedFile? changedFile) => !IsBusy && _hasValidRepository && changedFile is not null;
+
     private bool CanCommit() =>
         !IsBusy &&
         _hasValidRepository &&
@@ -164,31 +178,12 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var repositoryState = await _gitService.GetRepositoryStateAsync(_selectedFolderPath);
-
-            _hasValidRepository = true;
-            CurrentBranch = repositoryState.CurrentBranch;
-            StatusSummary = repositoryState.StatusSummary;
-
-            SyncCollection(ChangedFiles, repositoryState.ChangedFiles);
-            SyncCollection(RecentCommits, repositoryState.RecentCommits);
-            UpdateSelectedFileAfterRefresh();
-
-            OnPropertyChanged(nameof(HasChangedFiles));
-            OnPropertyChanged(nameof(HasRecentCommits));
-
+            ApplyRepositoryState(repositoryState);
             OutputMessage = $"Repository refreshed at {DateTime.Now:t}.";
         }
         catch (GitServiceException exception)
         {
-            _hasValidRepository = false;
-            CurrentBranch = "Unavailable";
-            StatusSummary = "The selected folder is not a Git repository.";
-            SyncCollection(ChangedFiles, Array.Empty<GitChangedFile>());
-            SyncCollection(RecentCommits, Array.Empty<GitCommitItem>());
-            ClearDiffPreview("Diff Preview", "Select a valid Git repository to inspect file diffs.");
-            OnPropertyChanged(nameof(HasChangedFiles));
-            OnPropertyChanged(nameof(HasRecentCommits));
-            OutputMessage = exception.Message;
+            ClearRepositoryStateForInvalidRepo(exception.Message);
         }
         finally
         {
@@ -207,6 +202,20 @@ public partial class MainWindowViewModel : ViewModelBase
     private Task CommitAsync() => ExecuteGitActionAsync(
         () => _gitService.CommitAsync(_selectedFolderPath!, CommitMessage),
         clearCommitMessage: true);
+
+    private Task ToggleStageFileAsync(GitChangedFile? changedFile)
+    {
+        if (changedFile is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteGitActionAsync(
+            () => changedFile.IsStaged
+                ? _gitService.UnstageFileAsync(_selectedFolderPath!, changedFile)
+                : _gitService.StageFileAsync(_selectedFolderPath!, changedFile),
+            clearCommitMessage: false);
+    }
 
     private async Task ExecuteGitActionAsync(Func<Task<string>> action, bool clearCommitMessage)
     {
@@ -237,6 +246,11 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         var repositoryState = await _gitService.GetRepositoryStateAsync(_selectedFolderPath);
+        ApplyRepositoryState(repositoryState);
+    }
+
+    private void ApplyRepositoryState(GitRepositoryState repositoryState)
+    {
         _hasValidRepository = true;
         CurrentBranch = repositoryState.CurrentBranch;
         StatusSummary = repositoryState.StatusSummary;
@@ -245,6 +259,21 @@ public partial class MainWindowViewModel : ViewModelBase
         UpdateSelectedFileAfterRefresh();
         OnPropertyChanged(nameof(HasChangedFiles));
         OnPropertyChanged(nameof(HasRecentCommits));
+        _repositoryFingerprint = BuildRepositoryFingerprint(repositoryState);
+    }
+
+    private void ClearRepositoryStateForInvalidRepo(string message)
+    {
+        _hasValidRepository = false;
+        CurrentBranch = "Unavailable";
+        StatusSummary = "The selected folder is not a Git repository.";
+        SyncCollection(ChangedFiles, Array.Empty<GitChangedFile>());
+        SyncCollection(RecentCommits, Array.Empty<GitCommitItem>());
+        ClearDiffPreview("Diff Preview", "Select a valid Git repository to inspect file diffs.");
+        OnPropertyChanged(nameof(HasChangedFiles));
+        OnPropertyChanged(nameof(HasRecentCommits));
+        OutputMessage = message;
+        _repositoryFingerprint = string.Empty;
     }
 
     private async Task RunBusyAsync(Func<Task> operation)
@@ -270,6 +299,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _selectedFolderPath = repositoryPath;
         RepositoryPath = repositoryPath;
+        _repositoryFingerprint = string.Empty;
         await RefreshAsync();
 
         if (_hasValidRepository)
@@ -299,6 +329,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RefreshCommand.NotifyCanExecuteChanged();
         StageAllCommand.NotifyCanExecuteChanged();
         UnstageAllCommand.NotifyCanExecuteChanged();
+        ToggleStageFileCommand.NotifyCanExecuteChanged();
         CommitCommand.NotifyCanExecuteChanged();
     }
 
@@ -324,7 +355,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedChangedFileChanged(GitChangedFile? value)
     {
-        UpdateSelectedFlags(value);
         _ = LoadDiffAsync(value);
     }
 
@@ -350,6 +380,37 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectedChangedFile = ChangedFiles[0];
+    }
+
+    private async void AutoRefreshTimerOnTick(object? sender, EventArgs e)
+    {
+        if (_isAutoRefreshing || IsBusy || !_hasValidRepository || string.IsNullOrWhiteSpace(_selectedFolderPath))
+        {
+            return;
+        }
+
+        _isAutoRefreshing = true;
+
+        try
+        {
+            var repositoryState = await _gitService.GetRepositoryStateAsync(_selectedFolderPath);
+            var nextFingerprint = BuildRepositoryFingerprint(repositoryState);
+            if (string.Equals(nextFingerprint, _repositoryFingerprint, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            ApplyRepositoryState(repositoryState);
+            OutputMessage = $"Repository auto-refreshed at {DateTime.Now:t}.";
+        }
+        catch (GitServiceException exception)
+        {
+            ClearRepositoryStateForInvalidRepo(exception.Message);
+        }
+        finally
+        {
+            _isAutoRefreshing = false;
+        }
     }
 
     private async Task LoadDiffAsync(GitChangedFile? changedFile)
@@ -391,22 +452,6 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedDiffHeader = header;
         SelectedDiff = content;
         ApplyDiffContent(content);
-    }
-
-    private void SelectChangedFile(GitChangedFile? changedFile)
-    {
-        if (changedFile is not null)
-        {
-            SelectedChangedFile = changedFile;
-        }
-    }
-
-    private void UpdateSelectedFlags(GitChangedFile? selectedFile)
-    {
-        foreach (var changedFile in ChangedFiles)
-        {
-            changedFile.IsSelected = ReferenceEquals(changedFile, selectedFile);
-        }
     }
 
     private void ApplyDiffContent(string diffText)
@@ -571,6 +616,7 @@ public partial class MainWindowViewModel : ViewModelBase
         line.StartsWith("similarity index", StringComparison.Ordinal) ||
         line.StartsWith("rename from ", StringComparison.Ordinal) ||
         line.StartsWith("rename to ", StringComparison.Ordinal);
+
     private static GitDiffLine CreateDiffLine(string line, ref int leftLineNumber, ref int rightLineNumber)
     {
         if (line.StartsWith("+", StringComparison.Ordinal) && !line.StartsWith("+++", StringComparison.Ordinal))
@@ -653,5 +699,33 @@ public partial class MainWindowViewModel : ViewModelBase
         var number = commaIndex >= 0 ? trimmed[..commaIndex] : trimmed;
 
         return int.TryParse(number, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
+    }
+
+    private static string BuildRepositoryFingerprint(GitRepositoryState repositoryState)
+    {
+        var builder = new StringBuilder();
+        builder.Append(repositoryState.CurrentBranch).Append('|');
+        builder.Append(repositoryState.StatusSummary).Append('|');
+
+        foreach (var changedFile in repositoryState.ChangedFiles)
+        {
+            builder
+                .Append(changedFile.IndexStatus)
+                .Append(changedFile.WorkingTreeStatus)
+                .Append(':')
+                .Append(changedFile.Path)
+                .Append('|');
+        }
+
+        foreach (var commit in repositoryState.RecentCommits)
+        {
+            builder
+                .Append(commit.ShortHash)
+                .Append(':')
+                .Append(commit.Message)
+                .Append('|');
+        }
+
+        return builder.ToString();
     }
 }
