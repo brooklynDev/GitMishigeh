@@ -41,11 +41,11 @@
             <Setter Property="Foreground" Value="#E5EAF3" />
         </Style>
         <Style Selector="TextBlock.subtle">
-            <Setter Property="Foreground" Value="#8EA0BC" />
+            <Setter Property="Foreground" Value="#A0AEC3" />
         </Style>
         <Style Selector="Border.sidebar-panel">
-            <Setter Property="Background" Value="#0E1522" />
-            <Setter Property="BorderBrush" Value="#1F2937" />
+            <Setter Property="Background" Value="#0E1620" />
+            <Setter Property="BorderBrush" Value="#2A374B" />
             <Setter Property="BorderThickness" Value="0,0,1,0" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="0" />
@@ -53,7 +53,7 @@
         <Style Selector="TextBlock.sidebar-heading">
             <Setter Property="FontSize" Value="10" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#7D8CA5" />
+            <Setter Property="Foreground" Value="#9AA7BC" />
         </Style>
         <Style Selector="Border.sidebar-nav-item">
             <Setter Property="CornerRadius" Value="9" />
@@ -61,11 +61,11 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Border.sidebar-nav-item.active">
-            <Setter Property="Background" Value="#2F73D9" />
+            <Setter Property="Background" Value="#355E93" />
         </Style>
         <Style Selector="TextBlock.sidebar-nav-icon">
             <Setter Property="FontSize" Value="18" />
-            <Setter Property="Foreground" Value="#60A5FA" />
+            <Setter Property="Foreground" Value="#7FC7D9" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.sidebar-nav-item.active TextBlock.sidebar-nav-icon">
@@ -73,7 +73,7 @@
         </Style>
         <Style Selector="TextBlock.sidebar-nav-text">
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Foreground" Value="#D6DEEA" />
+            <Setter Property="Foreground" Value="#D8E0EC" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.sidebar-nav-item.active TextBlock.sidebar-nav-text">
@@ -90,7 +90,7 @@
             <Setter Property="Foreground" Value="#D6DEEA" />
         </Style>
         <Style Selector="Border.sidebar-head-pill">
-            <Setter Property="Background" Value="#243244" />
+            <Setter Property="Background" Value="#2E3A4A" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="8,2" />
         </Style>
@@ -100,8 +100,8 @@
             <Setter Property="Foreground" Value="#D6DEEA" />
         </Style>
         <Style Selector="Border.top-strip">
-            <Setter Property="Background" Value="#202830" />
-            <Setter Property="BorderBrush" Value="#11161C" />
+            <Setter Property="Background" Value="#1B2330" />
+            <Setter Property="BorderBrush" Value="#111722" />
             <Setter Property="BorderThickness" Value="0,0,1,1" />
             <Setter Property="Padding" Value="14,10" />
         </Style>
@@ -117,7 +117,7 @@
         </Style>
         <Style Selector="TextBlock.top-strip-meta">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#CBD5E1" />
+            <Setter Property="Foreground" Value="#B7C4D8" />
         </Style>
         <Style Selector="ComboBox.top-strip-combo">
             <Setter Property="Background" Value="Transparent" />
@@ -129,8 +129,8 @@
             <Setter Property="Background" Value="#AA020617" />
         </Style>
         <Style Selector="Border.modal-card">
-            <Setter Property="Background" Value="#101826" />
-            <Setter Property="BorderBrush" Value="#263244" />
+            <Setter Property="Background" Value="#151C27" />
+            <Setter Property="BorderBrush" Value="#38465D" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="18" />
             <Setter Property="Padding" Value="20" />
@@ -234,6 +234,7 @@
                 Classes="sidebar-panel">
             <Grid RowDefinitions="Auto,*,Auto">
                 <Border BorderBrush="#1F2937"
+                        Background="#111A25"
                         BorderThickness="0,0,0,1"
                         Padding="12,12,12,10">
                     <StackPanel Spacing="6">
@@ -325,7 +326,7 @@
                         </StackPanel>
 
                         <Border Height="1"
-                                Background="#182232"
+                                Background="#243042"
                                 Margin="2,4" />
 
                         <StackPanel Spacing="6"
@@ -417,7 +418,8 @@
                 </ScrollViewer>
 
                 <Border Grid.Row="2"
-                        BorderBrush="#1F2937"
+                        BorderBrush="#2A374B"
+                        Background="#101721"
                         BorderThickness="0,1,0,0"
                         Padding="10">
                     <Button Command="{Binding OpenRepoCommand}"
@@ -463,6 +465,7 @@
             <Border Grid.Row="2" Classes="card" Padding="0">
                 <Grid RowDefinitions="Auto,*">
                     <Border BorderBrush="#23304A"
+                            Background="#172130"
                             BorderThickness="0,0,0,1"
                             Padding="16,12">
                         <Grid ColumnDefinitions="72,*">
@@ -540,7 +543,7 @@
                     </Border>
 
                     <ScrollViewer MinHeight="0"
-                                  Background="#0B1220"
+                                  Background="#0D141E"
                                   HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Visible">
                         <ItemsControl Margin="16" ItemsSource="{Binding DiffSections}">
