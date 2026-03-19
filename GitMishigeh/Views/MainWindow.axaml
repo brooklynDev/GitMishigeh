@@ -125,6 +125,16 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="MinHeight" Value="0" />
         </Style>
+        <Style Selector="Border.modal-backdrop">
+            <Setter Property="Background" Value="#AA020617" />
+        </Style>
+        <Style Selector="Border.modal-card">
+            <Setter Property="Background" Value="#101826" />
+            <Setter Property="BorderBrush" Value="#263244" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="20" />
+        </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*" Margin="0">
@@ -169,11 +179,17 @@
                                FontSize="20"
                                VerticalAlignment="Center"
                                Foreground="#F8FAFC" />
-                    <StackPanel Grid.Column="1" Spacing="2">
+                    <StackPanel Grid.Column="1" Spacing="4">
                         <TextBlock Classes="top-strip-title" Text="Current Branch" />
-                        <TextBlock Classes="top-strip-value"
-                                   Text="{Binding CurrentBranch}"
-                                   TextTrimming="CharacterEllipsis" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBlock Classes="top-strip-value"
+                                       Text="{Binding CurrentBranch}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding OpenBranchManagerCommand}"
+                                    Content="Manage" />
+                        </Grid>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -349,9 +365,16 @@
 
                         <StackPanel Spacing="6"
                                     IsVisible="{Binding IsWorkingCopyMode}">
-                            <TextBlock Classes="sidebar-heading" Text="Branches" />
-                            <ItemsControl ItemsSource="{Binding Branches}">
-                                <ItemsControl.ItemTemplate>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBlock Classes="sidebar-heading" Text="Branches" />
+                                <Button Grid.Column="1"
+                                        Command="{Binding OpenBranchManagerCommand}"
+                                        Content="Manage" />
+                            </Grid>
+                            <ListBox ItemsSource="{Binding Branches}"
+                                     SelectedItem="{Binding SelectedBranch, Mode=TwoWay}"
+                                     DoubleTapped="BranchListBox_OnDoubleTapped">
+                                <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="model:GitBranchItem">
                                         <Border Classes="sidebar-row">
                                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
@@ -368,8 +391,8 @@
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                         </StackPanel>
 
                         <StackPanel Spacing="6"
@@ -590,6 +613,113 @@
             </Border>
         </Grid>
         </Grid>
+
+        <Border Grid.RowSpan="2"
+                Classes="modal-backdrop"
+                IsVisible="{Binding IsBranchManagerOpen}">
+            <Grid>
+                <Border Classes="modal-card"
+                        Width="640"
+                        MaxHeight="720"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="app-title" Text="Branch Manager" />
+                                <TextBlock Classes="subtle"
+                                           Text="Create, switch, and clean up branches from one place." />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Classes="subtle"
+                                    Command="{Binding CloseBranchManagerCommand}"
+                                    Content="Close" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBox Grid.Column="0"
+                                     Watermark="New branch name"
+                                     Text="{Binding NewBranchName, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding CreateBranchCommand}"
+                                    Content="Create Branch"
+                                    MinWidth="120" />
+                        </Grid>
+
+                        <Border Grid.Row="2"
+                                Classes="card"
+                                Padding="0"
+                                MinHeight="280">
+                            <Grid RowDefinitions="Auto,*">
+                                <Border BorderBrush="#23304A"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="16,12">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                        <TextBlock Classes="label" Text="Branch" />
+                                        <TextBlock Grid.Column="1" Classes="label" Text="State" />
+                                        <TextBlock Grid.Column="2" Classes="label" Text="Actions" />
+                                    </Grid>
+                                </Border>
+
+                                <ScrollViewer Grid.Row="1" Classes="list-scroll">
+                                    <ListBox ItemsSource="{Binding Branches}"
+                                             SelectedItem="{Binding SelectedBranch, Mode=TwoWay}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="model:GitBranchItem">
+                                                <Border Classes="list-item">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                                        <StackPanel Spacing="2">
+                                                            <TextBlock Classes="list-title"
+                                                                       Text="{Binding Name}" />
+                                                            <TextBlock Classes="subtle"
+                                                                       Text="Current branch"
+                                                                       IsVisible="{Binding IsCurrent}" />
+                                                        </StackPanel>
+                                                        <Border Grid.Column="1"
+                                                                Classes="sidebar-head-pill"
+                                                                IsVisible="{Binding IsCurrent}"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Classes="sidebar-head-pill-text"
+                                                                       Text="{Binding HeadLabel}" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="2"
+                                                                    Orientation="Horizontal"
+                                                                    Spacing="8">
+                                                            <Button Command="{Binding #RootWindow.DataContext.CheckoutBranchCommand}"
+                                                                    CommandParameter="{Binding .}"
+                                                                    Content="Switch"
+                                                                    IsVisible="{Binding CanCheckout}" />
+                                                            <Button Classes="subtle"
+                                                                    Command="{Binding #RootWindow.DataContext.DeleteBranchCommand}"
+                                                                    CommandParameter="{Binding .}"
+                                                                    Content="Delete"
+                                                                    IsVisible="{Binding CanDelete}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                            <TextBlock Classes="subtle"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding CurrentBranch, StringFormat='Current branch: {0}'}" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding CheckoutSelectedBranchCommand}"
+                                    Content="Switch Selected" />
+                            <Button Grid.Column="2"
+                                    Classes="subtle"
+                                    Command="{Binding CloseBranchManagerCommand}"
+                                    Content="Done" />
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
     </Grid>
 
 </Window>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,6 +31,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string? _selectedCommitFilePath;
     private bool _suppressCommitLoad;
     private bool _suppressRecentRepositoryOpen;
+    private bool _suppressBranchSelectionSync;
     private DateTimeOffset? _lastFetchedAt;
 
     public MainWindowViewModel() : this(new GitService(), new FolderPickerService(), new RecentRepositoryStore())
@@ -61,6 +63,12 @@ public partial class MainWindowViewModel : ViewModelBase
         FetchCommand = new AsyncRelayCommand(FetchAsync, CanSyncWithRemote);
         PullCommand = new AsyncRelayCommand(PullAsync, CanSyncWithRemote);
         PushCommand = new AsyncRelayCommand(PushAsync, CanSyncWithRemote);
+        OpenBranchManagerCommand = new RelayCommand(OpenBranchManager, CanOpenBranchManager);
+        CloseBranchManagerCommand = new RelayCommand(CloseBranchManager);
+        CheckoutSelectedBranchCommand = new AsyncRelayCommand(CheckoutSelectedBranchAsync, CanCheckoutSelectedBranch);
+        CheckoutBranchCommand = new AsyncRelayCommand<GitBranchItem?>(CheckoutBranchAsync, CanCheckoutBranch);
+        CreateBranchCommand = new AsyncRelayCommand(CreateBranchAsync, CanCreateBranch);
+        DeleteBranchCommand = new AsyncRelayCommand<GitBranchItem?>(DeleteBranchAsync, CanDeleteBranch);
         StageAllCommand = new AsyncRelayCommand(StageAllAsync, CanStageAll);
         UnstageAllCommand = new AsyncRelayCommand(UnstageAllAsync, CanUnstageAll);
         ToggleStageFileCommand = new AsyncRelayCommand<GitChangedFile?>(ToggleStageFileAsync, CanToggleStageFile);
@@ -83,6 +91,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ApplyDiffContent(SelectedDiff);
 
         ChangedFiles.CollectionChanged += (_, _) => NotifyCommandStateChanged();
+        Branches.CollectionChanged += (_, _) => NotifyCommandStateChanged();
         CommitFiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasVisibleFiles));
         _ = LoadRecentRepositoriesAsync();
     }
@@ -121,6 +130,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IAsyncRelayCommand PushCommand { get; }
 
+    public IRelayCommand OpenBranchManagerCommand { get; }
+
+    public IRelayCommand CloseBranchManagerCommand { get; }
+
+    public IAsyncRelayCommand CheckoutSelectedBranchCommand { get; }
+
+    public IAsyncRelayCommand<GitBranchItem?> CheckoutBranchCommand { get; }
+
+    public IAsyncRelayCommand CreateBranchCommand { get; }
+
+    public IAsyncRelayCommand<GitBranchItem?> DeleteBranchCommand { get; }
+
     public IAsyncRelayCommand StageAllCommand { get; }
 
     public IAsyncRelayCommand UnstageAllCommand { get; }
@@ -157,6 +178,15 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private GitChangedFile? selectedFileEntry;
+
+    [ObservableProperty]
+    private GitBranchItem? selectedBranch;
+
+    [ObservableProperty]
+    private string newBranchName = string.Empty;
+
+    [ObservableProperty]
+    private bool isBranchManagerOpen;
 
     [ObservableProperty]
     private string selectedDiffHeader = string.Empty;
@@ -207,6 +237,23 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool CanShowHistory() => RecentCommits.Count > 0;
 
     private bool CanSyncWithRemote() => !IsBusy && _hasValidRepository;
+
+    private bool CanOpenBranchManager() => _hasValidRepository;
+
+    private bool CanCheckoutSelectedBranch() =>
+        !IsBusy && _hasValidRepository && SelectedBranch is not null && !SelectedBranch.IsCurrent;
+
+    private bool CanCheckoutBranch(GitBranchItem? branch) =>
+        !IsBusy && _hasValidRepository && branch is not null && !branch.IsCurrent;
+
+    private bool CanCreateBranch() =>
+        !IsBusy &&
+        _hasValidRepository &&
+        !string.IsNullOrWhiteSpace(NewBranchName) &&
+        Branches.All(branch => !string.Equals(branch.Name, NewBranchName.Trim(), StringComparison.Ordinal));
+
+    private bool CanDeleteBranch(GitBranchItem? branch) =>
+        !IsBusy && _hasValidRepository && branch is not null && !branch.IsCurrent;
 
     private bool CanStageAll() => !IsBusy && _hasValidRepository && ChangedFiles.Count > 0;
 
@@ -311,6 +358,77 @@ public partial class MainWindowViewModel : ViewModelBase
         () => _gitService.PushAsync(_selectedFolderPath!),
         clearCommitMessage: false);
 
+    private void OpenBranchManager()
+    {
+        if (!_hasValidRepository)
+        {
+            return;
+        }
+
+        IsBranchManagerOpen = true;
+    }
+
+    private void CloseBranchManager()
+    {
+        IsBranchManagerOpen = false;
+    }
+
+    private Task CheckoutSelectedBranchAsync()
+    {
+        if (SelectedBranch is null || SelectedBranch.IsCurrent)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteGitActionAsync(
+            () => _gitService.CheckoutBranchAsync(_selectedFolderPath!, SelectedBranch.Name),
+            clearCommitMessage: false,
+            onSuccess: CloseBranchManager);
+    }
+
+    private Task CheckoutBranchAsync(GitBranchItem? branch)
+    {
+        if (branch is null || branch.IsCurrent)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteGitActionAsync(
+            () => _gitService.CheckoutBranchAsync(_selectedFolderPath!, branch.Name),
+            clearCommitMessage: false,
+            onSuccess: CloseBranchManager);
+    }
+
+    private Task CreateBranchAsync()
+    {
+        var branchName = NewBranchName.Trim();
+        if (string.IsNullOrWhiteSpace(branchName))
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteGitActionAsync(
+            () => _gitService.CreateBranchAsync(_selectedFolderPath!, branchName),
+            clearCommitMessage: false,
+            onSuccess: () =>
+            {
+                NewBranchName = string.Empty;
+                CloseBranchManager();
+            });
+    }
+
+    private Task DeleteBranchAsync(GitBranchItem? branch)
+    {
+        if (branch is null || branch.IsCurrent)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteGitActionAsync(
+            () => _gitService.DeleteBranchAsync(_selectedFolderPath!, branch.Name),
+            clearCommitMessage: false);
+    }
+
     private Task UnstageAllAsync() => ExecuteGitActionAsync(
         () => _gitService.UnstageAllAsync(_selectedFolderPath!),
         clearCommitMessage: false);
@@ -386,6 +504,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _aheadCount = repositoryState.AheadCount;
         _behindCount = repositoryState.BehindCount;
         SyncCollection(Branches, repositoryState.Branches);
+        SyncSelectedBranch();
         SyncCollection(Remotes, repositoryState.Remotes);
         SyncCollection(ChangedFiles, repositoryState.ChangedFiles);
         SyncCollection(RecentCommits, repositoryState.RecentCommits);
@@ -439,11 +558,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private void ClearRepositoryStateForInvalidRepo(string message)
     {
         _hasValidRepository = false;
+        IsBranchManagerOpen = false;
         CurrentBranch = "Unavailable";
         StatusSummary = "The selected folder is not a Git repository.";
         _aheadCount = 0;
         _behindCount = 0;
         SyncCollection(Branches, Array.Empty<GitBranchItem>());
+        SelectedBranch = null;
         SyncCollection(Remotes, Array.Empty<GitRemoteItem>());
         SyncCollection(ChangedFiles, Array.Empty<GitChangedFile>());
         SyncCollection(CommitFiles, Array.Empty<GitChangedFile>());
@@ -548,6 +669,11 @@ public partial class MainWindowViewModel : ViewModelBase
         FetchCommand.NotifyCanExecuteChanged();
         PullCommand.NotifyCanExecuteChanged();
         PushCommand.NotifyCanExecuteChanged();
+        OpenBranchManagerCommand.NotifyCanExecuteChanged();
+        CheckoutSelectedBranchCommand.NotifyCanExecuteChanged();
+        CheckoutBranchCommand.NotifyCanExecuteChanged();
+        CreateBranchCommand.NotifyCanExecuteChanged();
+        DeleteBranchCommand.NotifyCanExecuteChanged();
         ShowHistoryCommand.NotifyCanExecuteChanged();
         StageAllCommand.NotifyCanExecuteChanged();
         UnstageAllCommand.NotifyCanExecuteChanged();
@@ -569,6 +695,11 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnCommitMessageChanged(string value)
     {
         CommitCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnNewBranchNameChanged(string value)
+    {
+        CreateBranchCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsBusyChanged(bool value)
@@ -616,6 +747,16 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         _ = LoadDiffAsync(value);
+    }
+
+    partial void OnSelectedBranchChanged(GitBranchItem? value)
+    {
+        if (_suppressBranchSelectionSync)
+        {
+            return;
+        }
+
+        CheckoutSelectedBranchCommand.NotifyCanExecuteChanged();
     }
 
     private async Task LoadCommitFilesAsync(GitCommitItem? commit)
@@ -1031,6 +1172,15 @@ public partial class MainWindowViewModel : ViewModelBase
         builder.Append(repositoryState.AheadCount).Append('|');
         builder.Append(repositoryState.BehindCount).Append('|');
 
+        foreach (var branch in repositoryState.Branches)
+        {
+            builder
+                .Append(branch.Name)
+                .Append(':')
+                .Append(branch.IsCurrent)
+                .Append('|');
+        }
+
         foreach (var changedFile in repositoryState.ChangedFiles)
         {
             builder
@@ -1077,5 +1227,30 @@ public partial class MainWindowViewModel : ViewModelBase
 
         var days = Math.Max(1, (int)Math.Floor(elapsed.TotalDays));
         return $"Last fetched {days} day{(days == 1 ? string.Empty : "s")} ago";
+    }
+
+    private void SyncSelectedBranch()
+    {
+        _suppressBranchSelectionSync = true;
+        try
+        {
+            SelectedBranch = null;
+            foreach (var branch in Branches)
+            {
+                if (!branch.IsCurrent)
+                {
+                    continue;
+                }
+
+                SelectedBranch = branch;
+                return;
+            }
+        }
+        finally
+        {
+            _suppressBranchSelectionSync = false;
+        }
+
+        CheckoutSelectedBranchCommand.NotifyCanExecuteChanged();
     }
 }

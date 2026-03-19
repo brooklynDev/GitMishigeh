@@ -120,6 +120,45 @@ public sealed class GitService : IGitService
         return BuildMutationMessage(result, "Pushed current branch.");
     }
 
+    public async Task<string> CheckoutBranchAsync(string repositoryPath, string branchName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(branchName))
+        {
+            throw new GitServiceException("Choose a branch to switch to.");
+        }
+
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var normalizedBranchName = branchName.Trim();
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "checkout", normalizedBranchName);
+        return BuildMutationMessage(result, $"Switched to {normalizedBranchName}.");
+    }
+
+    public async Task<string> CreateBranchAsync(string repositoryPath, string branchName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(branchName))
+        {
+            throw new GitServiceException("Enter a new branch name.");
+        }
+
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var normalizedBranchName = branchName.Trim();
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "checkout", "-b", normalizedBranchName);
+        return BuildMutationMessage(result, $"Created and switched to {normalizedBranchName}.");
+    }
+
+    public async Task<string> DeleteBranchAsync(string repositoryPath, string branchName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(branchName))
+        {
+            throw new GitServiceException("Choose a branch to delete.");
+        }
+
+        await EnsureGitRepositoryAsync(repositoryPath, cancellationToken);
+        var normalizedBranchName = branchName.Trim();
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "branch", "-d", normalizedBranchName);
+        return BuildMutationMessage(result, $"Deleted {normalizedBranchName}.");
+    }
+
     public async Task<string> CommitAsync(string repositoryPath, string commitMessage, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(commitMessage))

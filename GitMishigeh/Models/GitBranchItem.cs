@@ -13,4 +13,8 @@ public sealed class GitBranchItem
     public bool IsCurrent { get; }
 
     public string HeadLabel => IsCurrent ? "HEAD" : string.Empty;
+
+    public bool CanCheckout => !IsCurrent;
+
+    public bool CanDelete => !IsCurrent;
 }
