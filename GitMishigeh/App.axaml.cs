@@ -29,7 +29,8 @@ public partial class App : Application
             var gitService = new GitService();
             var folderPickerService = new FolderPickerService();
             var recentRepositoryStore = new RecentRepositoryStore();
-            var viewModel = new MainWindowViewModel(gitService, folderPickerService, recentRepositoryStore);
+            var appPreferencesStore = new AppPreferencesStore();
+            var viewModel = new MainWindowViewModel(gitService, folderPickerService, recentRepositoryStore, appPreferencesStore);
             var mainWindow = new MainWindow
             {
                 DataContext = viewModel,

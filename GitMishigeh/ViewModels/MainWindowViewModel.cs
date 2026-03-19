@@ -19,6 +19,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IGitService _gitService;
     private readonly IFolderPickerService _folderPickerService;
     private readonly IRecentRepositoryStore _recentRepositoryStore;
+    private readonly IAppPreferencesStore _appPreferencesStore;
     private readonly DispatcherTimer _autoRefreshTimer;
     private string? _selectedFolderPath;
     private bool _hasValidRepository;
@@ -32,20 +33,24 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool _suppressCommitLoad;
     private bool _suppressRecentRepositoryOpen;
     private bool _suppressBranchSelectionSync;
+    private bool _isApplyingPreferences;
+    private bool _hasLoadedAppPreferences;
     private DateTimeOffset? _lastFetchedAt;
 
-    public MainWindowViewModel() : this(new GitService(), new FolderPickerService(), new RecentRepositoryStore())
+    public MainWindowViewModel() : this(new GitService(), new FolderPickerService(), new RecentRepositoryStore(), new AppPreferencesStore())
     {
     }
 
     public MainWindowViewModel(
         IGitService gitService,
         IFolderPickerService folderPickerService,
-        IRecentRepositoryStore recentRepositoryStore)
+        IRecentRepositoryStore recentRepositoryStore,
+        IAppPreferencesStore appPreferencesStore)
     {
         _gitService = gitService;
         _folderPickerService = folderPickerService;
         _recentRepositoryStore = recentRepositoryStore;
+        _appPreferencesStore = appPreferencesStore;
 
         ChangedFiles = new ObservableCollection<GitChangedFile>();
         CommitFiles = new ObservableCollection<GitChangedFile>();
@@ -96,6 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Branches.CollectionChanged += (_, _) => NotifyCommandStateChanged();
         CommitFiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasVisibleFiles));
         _ = LoadRecentRepositoriesAsync();
+        _ = LoadAppPreferencesAsync();
     }
 
     public ObservableCollection<GitChangedFile> ChangedFiles { get; }
@@ -705,6 +711,16 @@ public partial class MainWindowViewModel : ViewModelBase
         CommitCommand.NotifyCanExecuteChanged();
     }
 
+    partial void OnNavigationPaneWidthChanged(double value)
+    {
+        PersistPaneWidths();
+    }
+
+    partial void OnFilePaneWidthChanged(double value)
+    {
+        PersistPaneWidths();
+    }
+
     partial void OnNewBranchNameChanged(string value)
     {
         CreateBranchCommand.NotifyCanExecuteChanged();
@@ -1237,6 +1253,39 @@ public partial class MainWindowViewModel : ViewModelBase
 
         var days = Math.Max(1, (int)Math.Floor(elapsed.TotalDays));
         return $"Last fetched {days} day{(days == 1 ? string.Empty : "s")} ago";
+    }
+
+    private async Task LoadAppPreferencesAsync()
+    {
+        var preferences = await _appPreferencesStore.LoadAsync();
+
+        _isApplyingPreferences = true;
+        try
+        {
+            NavigationPaneWidth = Math.Max(180, preferences.NavigationPaneWidth);
+            FilePaneWidth = Math.Max(320, preferences.FilePaneWidth);
+        }
+        finally
+        {
+            _isApplyingPreferences = false;
+            _hasLoadedAppPreferences = true;
+        }
+    }
+
+    private void PersistPaneWidths()
+    {
+        if (_isApplyingPreferences || !_hasLoadedAppPreferences)
+        {
+            return;
+        }
+
+        var preferences = new AppPreferences
+        {
+            NavigationPaneWidth = NavigationPaneWidth,
+            FilePaneWidth = FilePaneWidth
+        };
+
+        _ = _appPreferencesStore.SaveAsync(preferences);
     }
 
     private void SyncSelectedBranch()
