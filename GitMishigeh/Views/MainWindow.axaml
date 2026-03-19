@@ -229,11 +229,13 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Row="1" Margin="0">
+        <Grid x:Name="WorkspaceGrid" Grid.Row="1" Margin="0">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="{Binding NavigationPaneWidth}" MinWidth="180" />
+            <ColumnDefinition Width="220"
+                              MinWidth="180" />
             <ColumnDefinition Width="6" />
-            <ColumnDefinition Width="{Binding FilePaneWidth}" MinWidth="320" />
+            <ColumnDefinition Width="540"
+                              MinWidth="320" />
             <ColumnDefinition Width="6" />
             <ColumnDefinition Width="*" MinWidth="360" />
         </Grid.ColumnDefinitions>

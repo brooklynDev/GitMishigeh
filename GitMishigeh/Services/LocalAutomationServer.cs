@@ -194,7 +194,13 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             {
                 var leftPaneWidth = TryGetDouble(root, "left");
                 var middlePaneWidth = TryGetDouble(root, "middle");
-                await Dispatcher.UIThread.InvokeAsync(() => _viewModel.AutomationSetPaneWidths(leftPaneWidth, middlePaneWidth));
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var targetLeft = leftPaneWidth ?? _window.ActualNavigationPaneWidth;
+                    var targetMiddle = middlePaneWidth ?? _window.ActualFilePaneWidth;
+                    _window.ApplyPaneWidths(targetLeft, targetMiddle);
+                    _viewModel.AutomationSetPaneWidths(targetLeft, targetMiddle);
+                });
                 return new { ok = true, state = await Dispatcher.UIThread.InvokeAsync(BuildState) };
             }
             case "stage_all":
@@ -268,8 +274,8 @@ public sealed class LocalAutomationServer : IAsyncDisposable
             isHistoryMode = _viewModel.IsShowingCommitHistory,
             selectedFile = _viewModel.SelectedFileEntry?.Path,
             selectedCommit = _viewModel.SelectedCommit?.ShortHash,
-            navigationPaneWidth = _viewModel.NavigationPaneWidth,
-            filePaneWidth = _viewModel.FilePaneWidth,
+            navigationPaneWidth = _window.ActualNavigationPaneWidth,
+            filePaneWidth = _window.ActualFilePaneWidth,
             visibleFiles = files,
             recentCommits = commits,
             recentRepositories = recentRepositories,
