@@ -17,11 +17,15 @@ public sealed class GitService : IGitService
 
         var statusTask = RunGitCommandAsync(repositoryPath, cancellationToken, "status", "--short", "--branch");
         var logTask = GetRecentCommitsAsync(repositoryPath, cancellationToken);
+        var branchTask = GetBranchesAsync(repositoryPath, cancellationToken);
+        var remoteTask = GetRemotesAsync(repositoryPath, cancellationToken);
 
-        await Task.WhenAll(statusTask, logTask);
+        await Task.WhenAll(statusTask, logTask, branchTask, remoteTask);
 
         var statusOutput = await statusTask;
         var recentCommits = await logTask;
+        var branches = await branchTask;
+        var remotes = await remoteTask;
         var changedFiles = ParseChangedFiles(statusOutput.StandardOutput);
         ParseRemoteTrackingCounts(statusOutput.StandardOutput, out var aheadCount, out var behindCount);
 
@@ -30,6 +34,8 @@ public sealed class GitService : IGitService
             BuildStatusSummary(changedFiles),
             aheadCount,
             behindCount,
+            branches,
+            remotes,
             changedFiles,
             recentCommits);
     }
@@ -203,6 +209,36 @@ public sealed class GitService : IGitService
         {
             return Array.Empty<GitCommitItem>();
         }
+    }
+
+    private async Task<IReadOnlyList<GitBranchItem>> GetBranchesAsync(string repositoryPath, CancellationToken cancellationToken)
+    {
+        var result = await RunGitCommandAsync(
+            repositoryPath,
+            cancellationToken,
+            "branch",
+            "--format=%(refname:short)\t%(HEAD)");
+
+        return result.StandardOutput
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line =>
+            {
+                var parts = line.Split('\t');
+                var name = parts[0].Trim();
+                var isCurrent = parts.Length > 1 && parts[1].Trim() == "*";
+                return new GitBranchItem(name, isCurrent);
+            })
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<GitRemoteItem>> GetRemotesAsync(string repositoryPath, CancellationToken cancellationToken)
+    {
+        var result = await RunGitCommandAsync(repositoryPath, cancellationToken, "remote");
+        return result.StandardOutput
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.Ordinal)
+            .Select(name => new GitRemoteItem(name.Trim()))
+            .ToList();
     }
 
     private static async Task<string> BuildUntrackedFileDiffAsync(

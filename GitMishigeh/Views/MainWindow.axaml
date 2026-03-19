@@ -46,9 +46,58 @@
         <Style Selector="Border.sidebar-panel">
             <Setter Property="Background" Value="#0E1522" />
             <Setter Property="BorderBrush" Value="#1F2937" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Padding" Value="14" />
+            <Setter Property="BorderThickness" Value="0,0,1,0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="TextBlock.sidebar-heading">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#7D8CA5" />
+        </Style>
+        <Style Selector="Border.sidebar-nav-item">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.sidebar-nav-item.active">
+            <Setter Property="Background" Value="#2F73D9" />
+        </Style>
+        <Style Selector="TextBlock.sidebar-nav-icon">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Foreground" Value="#60A5FA" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.sidebar-nav-item.active TextBlock.sidebar-nav-icon">
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+        <Style Selector="TextBlock.sidebar-nav-text">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="#D6DEEA" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.sidebar-nav-item.active TextBlock.sidebar-nav-text">
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.sidebar-row">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TextBlock.sidebar-row-text">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="#D6DEEA" />
+        </Style>
+        <Style Selector="Border.sidebar-head-pill">
+            <Setter Property="Background" Value="#243244" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+        <Style Selector="TextBlock.sidebar-head-pill-text">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#D6DEEA" />
         </Style>
         <Style Selector="Border.top-strip">
             <Setter Property="Background" Value="#202830" />
@@ -164,58 +213,122 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Row="1" ColumnDefinitions="280,620,*" Margin="0">
+        <Grid Grid.Row="1" ColumnDefinitions="220,540,*" Margin="0">
         <Border Grid.Column="0"
-                Classes="sidebar-panel"
-                CornerRadius="0">
-            <Grid RowDefinitions="*,Auto" RowSpacing="18">
-                <StackPanel Grid.Row="0" Spacing="18">
-                    <StackPanel Spacing="4">
-                        <TextBlock Classes="app-title" Text="Workspace" />
+                Classes="sidebar-panel">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <Border BorderBrush="#1F2937"
+                        BorderThickness="0,0,0,1"
+                        Padding="12,12,12,10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="sidebar-heading" Text="WORKSPACE" />
+                        <TextBlock Classes="nav-title"
+                                   Text="{Binding CurrentBranch}"
+                                   TextTrimming="CharacterEllipsis" />
                         <TextBlock Classes="subtle"
+                                   FontSize="11"
                                    Text="{Binding RepositoryPath}"
                                    TextTrimming="CharacterEllipsis" />
                     </StackPanel>
+                </Border>
 
-                    <StackPanel Spacing="8">
-                        <TextBlock Classes="label" Text="Sections" />
-                        <Button Command="{Binding ShowWorkingTreeCommand}"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="0"
-                                HorizontalContentAlignment="Stretch">
-                            <Border Background="#111C30"
-                                    BorderBrush="#23304A"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
-                                    Padding="12,10">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Classes="nav-title" Text="Working Copy" />
-                                    <Border Grid.Column="1" Classes="badge" VerticalAlignment="Center">
-                                        <TextBlock Classes="badge-text" Text="{Binding ChangedFiles.Count}" />
-                                    </Border>
-                                </Grid>
-                            </Border>
-                        </Button>
-                    </StackPanel>
+                <ScrollViewer Grid.Row="1" Classes="list-scroll">
+                    <StackPanel Margin="10,10,10,12" Spacing="12">
+                        <StackPanel Spacing="4">
+                            <Button Command="{Binding ShowWorkingTreeCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Stretch">
+                                <Border Classes="sidebar-nav-item active"
+                                        IsVisible="{Binding IsWorkingCopyMode}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                        <TextBlock Classes="sidebar-nav-icon" Text="▭" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="sidebar-nav-text"
+                                                   Text="Working Copy" />
+                                        <Border Grid.Column="2" Classes="badge" VerticalAlignment="Center">
+                                            <TextBlock Classes="badge-text"
+                                                       Foreground="#FFFFFF"
+                                                       Text="{Binding ChangedFiles.Count}" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </Button>
 
-                    <StackPanel Spacing="8">
-                        <TextBlock Classes="label" Text="History" />
-                        <ScrollViewer MaxHeight="360" Classes="list-scroll">
+                            <Button Command="{Binding ShowWorkingTreeCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Stretch">
+                                <Border Classes="sidebar-nav-item"
+                                        IsVisible="{Binding IsShowingCommitHistory}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                        <TextBlock Classes="sidebar-nav-icon" Text="▭" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="sidebar-nav-text"
+                                                   Text="Working Copy" />
+                                        <Border Grid.Column="2" Classes="badge" VerticalAlignment="Center">
+                                            <TextBlock Classes="badge-text" Text="{Binding ChangedFiles.Count}" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </Button>
+
+                            <Button Command="{Binding ShowHistoryCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Stretch">
+                                <Border Classes="sidebar-nav-item active"
+                                        IsVisible="{Binding IsShowingCommitHistory}">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <TextBlock Classes="sidebar-nav-icon" Text="◔" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="sidebar-nav-text"
+                                                   Text="History" />
+                                    </Grid>
+                                </Border>
+                            </Button>
+
+                            <Button Command="{Binding ShowHistoryCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Stretch">
+                                <Border Classes="sidebar-nav-item"
+                                        IsVisible="{Binding IsWorkingCopyMode}">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <TextBlock Classes="sidebar-nav-icon" Text="◔" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="sidebar-nav-text"
+                                                   Text="History" />
+                                    </Grid>
+                                </Border>
+                            </Button>
+                        </StackPanel>
+
+                        <Border Height="1"
+                                Background="#182232"
+                                Margin="2,4" />
+
+                        <StackPanel Spacing="6"
+                                    IsVisible="{Binding IsShowingCommitHistory}">
+                            <TextBlock Classes="sidebar-heading" Text="Recent Commits" />
                             <ListBox ItemsSource="{Binding RecentCommits}"
                                      SelectedItem="{Binding SelectedCommit, Mode=TwoWay}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="model:GitCommitItem">
                                         <Border Classes="list-item">
-                                            <Grid ColumnDefinitions="24,*" ColumnSpacing="10">
-                                                <Grid Width="24">
+                                            <Grid ColumnDefinitions="18,*" ColumnSpacing="8">
+                                                <Grid Width="18">
                                                     <Border Classes="commit-graph-line"
                                                             IsVisible="{Binding ShowConnector}" />
                                                     <Border Classes="commit-graph-node" />
                                                 </Grid>
 
-                                                <StackPanel Grid.Column="1" Spacing="4">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <StackPanel Orientation="Horizontal" Spacing="5">
                                                         <TextBlock Classes="badge-text"
                                                                    Text="{Binding ShortHash}" />
                                                         <TextBlock Classes="muted commit-refs"
@@ -225,21 +338,73 @@
                                                     <TextBlock Classes="list-title"
                                                                Text="{Binding Message}"
                                                                TextWrapping="Wrap"
-                                                               FontSize="13" />
+                                                               FontSize="12" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                        </ScrollViewer>
-                    </StackPanel>
-                </StackPanel>
+                        </StackPanel>
 
-                <StackPanel Grid.Row="1" Spacing="12">
-                    <Button Command="{Binding OpenRepoCommand}" Content="Open Repo" />
-                    <Button Classes="subtle" Command="{Binding RefreshCommand}" Content="Refresh" />
-                </StackPanel>
+                        <StackPanel Spacing="6"
+                                    IsVisible="{Binding IsWorkingCopyMode}">
+                            <TextBlock Classes="sidebar-heading" Text="Branches" />
+                            <ItemsControl ItemsSource="{Binding Branches}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="model:GitBranchItem">
+                                        <Border Classes="sidebar-row">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                                <TextBlock Classes="sidebar-nav-icon" Text="⑂" FontSize="14" />
+                                                <TextBlock Grid.Column="1"
+                                                           Classes="sidebar-row-text"
+                                                           Text="{Binding Name}" />
+                                                <Border Grid.Column="2"
+                                                        Classes="sidebar-head-pill"
+                                                        IsVisible="{Binding IsCurrent}">
+                                                    <TextBlock Classes="sidebar-head-pill-text"
+                                                               Text="{Binding HeadLabel}" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6"
+                                    IsVisible="{Binding IsWorkingCopyMode}">
+                            <TextBlock Classes="sidebar-heading" Text="Remotes" />
+                            <ItemsControl ItemsSource="{Binding Remotes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="model:GitRemoteItem">
+                                        <Border Classes="sidebar-row">
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                <TextBlock Classes="sidebar-nav-icon" Text="⌁" FontSize="14" />
+                                                <TextBlock Grid.Column="1"
+                                                           Classes="sidebar-row-text"
+                                                           Text="{Binding Name}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Border Grid.Row="2"
+                        BorderBrush="#1F2937"
+                        BorderThickness="0,1,0,0"
+                        Padding="10">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Command="{Binding OpenRepoCommand}" Content="Open Repo" />
+                        <Button Grid.Column="1"
+                                Classes="subtle"
+                                Command="{Binding RefreshCommand}"
+                                Content="Refresh" />
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 

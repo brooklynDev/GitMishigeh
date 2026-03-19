@@ -47,6 +47,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         ChangedFiles = new ObservableCollection<GitChangedFile>();
         CommitFiles = new ObservableCollection<GitChangedFile>();
+        Branches = new ObservableCollection<GitBranchItem>();
+        Remotes = new ObservableCollection<GitRemoteItem>();
         RecentCommits = new ObservableCollection<GitCommitItem>();
         RecentRepositories = new ObservableCollection<RecentRepository>();
         DiffSections = new ObservableCollection<GitDiffSection>();
@@ -54,6 +56,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenRepoCommand = new AsyncRelayCommand(OpenRepoAsync, CanOpenRepo);
         OpenRecentRepositoryCommand = new AsyncRelayCommand<RecentRepository?>(OpenRecentRepositoryAsync, CanOpenRecentRepository);
         ShowWorkingTreeCommand = new RelayCommand(ShowWorkingTree);
+        ShowHistoryCommand = new RelayCommand(ShowHistory, CanShowHistory);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
         FetchCommand = new AsyncRelayCommand(FetchAsync, CanSyncWithRemote);
         PullCommand = new AsyncRelayCommand(PullAsync, CanSyncWithRemote);
@@ -88,6 +91,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<GitChangedFile> CommitFiles { get; }
 
+    public ObservableCollection<GitBranchItem> Branches { get; }
+
+    public ObservableCollection<GitRemoteItem> Remotes { get; }
+
     public ObservableCollection<GitCommitItem> RecentCommits { get; }
 
     public ObservableCollection<RecentRepository> RecentRepositories { get; }
@@ -103,6 +110,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand<RecentRepository?> OpenRecentRepositoryCommand { get; }
 
     public IRelayCommand ShowWorkingTreeCommand { get; }
+
+    public IRelayCommand ShowHistoryCommand { get; }
 
     public IAsyncRelayCommand RefreshCommand { get; }
 
@@ -157,6 +166,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasChangedFiles => ChangedFiles.Count > 0;
 
+    public bool HasBranches => Branches.Count > 0;
+
+    public bool HasRemotes => Remotes.Count > 0;
+
     public bool HasRecentCommits => RecentCommits.Count > 0;
 
     public bool HasRecentRepositories => RecentRepositories.Count > 0;
@@ -164,6 +177,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasDiffSections => DiffSections.Count > 0;
 
     public bool IsShowingCommitHistory => SelectedCommit is not null;
+
+    public bool IsWorkingCopyMode => !IsShowingCommitHistory;
 
     public bool HasVisibleFiles => IsShowingCommitHistory ? CommitFiles.Count > 0 : ChangedFiles.Count > 0;
 
@@ -188,6 +203,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool CanOpenRecentRepository(RecentRepository? repository) => !IsBusy && repository is not null;
 
     private bool CanRefresh() => !IsBusy && _hasValidRepository;
+
+    private bool CanShowHistory() => RecentCommits.Count > 0;
 
     private bool CanSyncWithRemote() => !IsBusy && _hasValidRepository;
 
@@ -237,6 +254,16 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectedCommit = null;
+    }
+
+    private void ShowHistory()
+    {
+        if (RecentCommits.Count == 0)
+        {
+            return;
+        }
+
+        SelectedCommit = RecentCommits[0];
     }
 
     private Task RefreshAsync() => RunBusyAsync(async () =>
@@ -358,6 +385,8 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusSummary = repositoryState.StatusSummary;
         _aheadCount = repositoryState.AheadCount;
         _behindCount = repositoryState.BehindCount;
+        SyncCollection(Branches, repositoryState.Branches);
+        SyncCollection(Remotes, repositoryState.Remotes);
         SyncCollection(ChangedFiles, repositoryState.ChangedFiles);
         SyncCollection(RecentCommits, repositoryState.RecentCommits);
 
@@ -368,12 +397,15 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(HasChangedFiles));
+        OnPropertyChanged(nameof(HasBranches));
+        OnPropertyChanged(nameof(HasRemotes));
         OnPropertyChanged(nameof(HasRecentCommits));
         OnPropertyChanged(nameof(PushButtonText));
         OnPropertyChanged(nameof(FetchStatusText));
         OnPropertyChanged(nameof(FilePaneSubtitle));
         OnPropertyChanged(nameof(VisibleFiles));
         OnPropertyChanged(nameof(HasVisibleFiles));
+        ShowHistoryCommand.NotifyCanExecuteChanged();
         _repositoryFingerprint = BuildRepositoryFingerprint(repositoryState);
     }
 
@@ -411,6 +443,8 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusSummary = "The selected folder is not a Git repository.";
         _aheadCount = 0;
         _behindCount = 0;
+        SyncCollection(Branches, Array.Empty<GitBranchItem>());
+        SyncCollection(Remotes, Array.Empty<GitRemoteItem>());
         SyncCollection(ChangedFiles, Array.Empty<GitChangedFile>());
         SyncCollection(CommitFiles, Array.Empty<GitChangedFile>());
         SyncCollection(RecentCommits, Array.Empty<GitCommitItem>());
@@ -418,12 +452,15 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedFileEntry = null;
         ClearDiffPreview("Diff Preview", "Select a valid Git repository to inspect file diffs.");
         OnPropertyChanged(nameof(HasChangedFiles));
+        OnPropertyChanged(nameof(HasBranches));
+        OnPropertyChanged(nameof(HasRemotes));
         OnPropertyChanged(nameof(HasRecentCommits));
         OnPropertyChanged(nameof(PushButtonText));
         OnPropertyChanged(nameof(FetchStatusText));
         OnPropertyChanged(nameof(FilePaneSubtitle));
         OnPropertyChanged(nameof(VisibleFiles));
         OnPropertyChanged(nameof(HasVisibleFiles));
+        ShowHistoryCommand.NotifyCanExecuteChanged();
         OutputMessage = message;
         _repositoryFingerprint = string.Empty;
     }
@@ -511,6 +548,7 @@ public partial class MainWindowViewModel : ViewModelBase
         FetchCommand.NotifyCanExecuteChanged();
         PullCommand.NotifyCanExecuteChanged();
         PushCommand.NotifyCanExecuteChanged();
+        ShowHistoryCommand.NotifyCanExecuteChanged();
         StageAllCommand.NotifyCanExecuteChanged();
         UnstageAllCommand.NotifyCanExecuteChanged();
         ToggleStageFileCommand.NotifyCanExecuteChanged();
@@ -550,6 +588,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedCommitChanged(GitCommitItem? value)
     {
+        OnPropertyChanged(nameof(IsWorkingCopyMode));
         OnPropertyChanged(nameof(IsShowingCommitHistory));
         OnPropertyChanged(nameof(VisibleFiles));
         OnPropertyChanged(nameof(HasVisibleFiles));

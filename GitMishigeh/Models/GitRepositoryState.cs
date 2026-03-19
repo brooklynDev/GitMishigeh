@@ -9,6 +9,8 @@ public sealed class GitRepositoryState
         string statusSummary,
         int aheadCount,
         int behindCount,
+        IReadOnlyList<GitBranchItem> branches,
+        IReadOnlyList<GitRemoteItem> remotes,
         IReadOnlyList<GitChangedFile> changedFiles,
         IReadOnlyList<GitCommitItem> recentCommits)
     {
@@ -16,6 +18,8 @@ public sealed class GitRepositoryState
         StatusSummary = statusSummary;
         AheadCount = aheadCount;
         BehindCount = behindCount;
+        Branches = branches;
+        Remotes = remotes;
         ChangedFiles = changedFiles;
         RecentCommits = recentCommits;
     }
@@ -27,6 +31,10 @@ public sealed class GitRepositoryState
     public int AheadCount { get; }
 
     public int BehindCount { get; }
+
+    public IReadOnlyList<GitBranchItem> Branches { get; }
+
+    public IReadOnlyList<GitRemoteItem> Remotes { get; }
 
     public IReadOnlyList<GitChangedFile> ChangedFiles { get; }
 
